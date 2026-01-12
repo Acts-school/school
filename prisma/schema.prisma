@@ -1,0 +1,1011 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+model StudentPhoneAlias {
+  id        Int      @id @default(autoincrement())
+  studentId String
+  student   Student  @relation(fields: [studentId], references: [id])
+  phone     String
+  createdAt DateTime @default(now())
+
+  @@index([phone])
+  @@index([studentId])
+  @@unique([studentId, phone])
+}
+
+/// Catalog of fee categories (e.g., Tuition, Activity, External Exams, Meals, Assessment Book, Computer Studies, Admission, Interview, Transport, Uniform)
+model FeeCategory {
+  id          Int          @id @default(autoincrement())
+  name        String       @unique
+  description String?
+  isRecurring Boolean      @default(true)
+  frequency   FeeFrequency
+  isEditable  Boolean      @default(true)
+  active      Boolean      @default(true)
+
+  // Relations
+  structures  ClassFeeStructure[]
+  studentFees StudentFee[]
+}
+
+/// Class-level fee amounts per category, term and academic year
+model ClassFeeStructure {
+  id            Int         @id @default(autoincrement())
+  classId       Int
+  class         Class       @relation(fields: [classId], references: [id])
+  feeCategoryId Int
+  feeCategory   FeeCategory @relation(fields: [feeCategoryId], references: [id])
+  term          Term?
+  academicYear  Int?
+  amount        Int
+  active        Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  // Back relation to StudentFee.sourceStructure
+  studentFees StudentFee[] @relation("StudentFeeSource")
+
+  @@unique([classId, feeCategoryId, term, academicYear])
+}
+
+/// Audit trail for administrative changes
+model AuditLog {
+  id          Int      @id @default(autoincrement())
+  actorUserId String
+  entity      String
+  entityId    String
+  oldValue    Json?
+  newValue    Json?
+  reason      String?
+  createdAt   DateTime @default(now())
+}
+
+/// Bank / till metadata for payments
+model SchoolPaymentInfo {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  data      Json
+  createdAt DateTime @default(now())
+}
+
+model SmsNotification {
+  id           Int               @id @default(autoincrement())
+  toPhone      String
+  body         String
+  status       SmsDeliveryStatus @default(PENDING)
+  provider     String?
+  externalId   String?
+  errorMessage String?
+
+  kind      SmsNotificationKind
+  relatedId String
+
+  createdAt DateTime  @default(now())
+  sentAt    DateTime?
+}
+
+/// Global school configuration controlled by admins
+model SchoolSettings {
+  id                  Int      @id @default(1)
+  schoolName          String
+  currentAcademicYear Int
+  currentTerm         Term
+  passingScore        Int?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+model School {
+  id        Int      @id @default(autoincrement())
+  name      String
+  code      String?  @unique
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships    SchoolUser[]
+  classes        Class[]
+  expenses       Expense[]
+  budgetYears    BudgetYear[]
+  payrolls       PayrollPeriod[]
+  messageThreads MessageThread[]
+}
+
+model SchoolUser {
+  id        Int      @id @default(autoincrement())
+  schoolId  Int
+  school    School   @relation(fields: [schoolId], references: [id])
+  userId    String
+  role      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([schoolId, userId])
+}
+
+/// Per-user preferences, such as UI theme, keyed by (userId, role)
+model UserPreference {
+  id        Int             @id @default(autoincrement())
+  userId    String
+  role      String
+  theme     ThemePreference @default(SYSTEM)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  @@unique([userId, role])
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// CBC: education stages for Kenyan 2-6-3-3-3 structure
+enum EducationStage {
+  PRE_PRIMARY
+  LOWER_PRIMARY
+  UPPER_PRIMARY
+  JUNIOR_SECONDARY
+  SENIOR_SECONDARY
+}
+
+// CBC: senior secondary pathways
+enum EducationPathway {
+  STEM
+  ARTS_SPORTS
+  SOCIAL_SCIENCES
+}
+
+model Admin {
+  id       String  @id @default(uuid())
+  username String  @unique
+  password String
+  staffId  String? @unique
+  staff    Staff?  @relation(fields: [staffId], references: [id])
+}
+
+model Accountant {
+  id       String  @id @default(uuid())
+  username String  @unique
+  password String
+  staffId  String? @unique
+  staff    Staff?  @relation(fields: [staffId], references: [id])
+}
+
+model Student {
+  id                      String                    @id @default(uuid())
+  username                String                    @unique
+  password                String
+  name                    String
+  surname                 String
+  email                   String?                   @unique
+  phone                   String?                   @unique
+  address                 String
+  img                     String?
+  bloodType               String
+  sex                     UserSex
+  createdAt               DateTime                  @default(now())
+  parentId                String
+  parent                  Parent                    @relation(fields: [parentId], references: [id])
+  classId                 Int
+  class                   Class                     @relation(fields: [classId], references: [id])
+  gradeId                 Int
+  grade                   Grade                     @relation(fields: [gradeId], references: [id])
+  attendances             Attendance[]
+  results                 Result[]
+  invoices                Invoice[]
+  studentFees             StudentFee[]
+  birthday                DateTime
+  StudentCompetencyRecord StudentCompetencyRecord[]
+  StudentSloRecord        StudentSloRecord[]
+  LearningObservation     LearningObservation[]
+  phoneAliases            StudentPhoneAlias[]
+  admissionYear           Int?
+  admissionLevel          Int?
+  admissionSerial         Int?
+}
+
+model Teacher {
+  id                      String                    @id @default(uuid())
+  username                String                    @unique
+  password                String
+  staffId                 String?                   @unique
+  staff                   Staff?                    @relation(fields: [staffId], references: [id])
+  name                    String
+  surname                 String
+  email                   String?                   @unique
+  phone                   String?                   @unique
+  address                 String
+  img                     String?
+  bloodType               String
+  sex                     UserSex
+  createdAt               DateTime                  @default(now())
+  subjects                Subject[]
+  lessons                 Lesson[]
+  classes                 Class[]
+  birthday                DateTime
+  StudentCompetencyRecord StudentCompetencyRecord[]
+  StudentSloRecord        StudentSloRecord[]
+  LearningObservation     LearningObservation[]
+}
+
+model ImageAsset {
+  id        String   @id @default(cuid())
+  mimeType  String
+  data      Bytes
+  createdAt DateTime @default(now())
+}
+
+model Parent {
+  id        String    @id @default(uuid())
+  username  String    @unique
+  password  String
+  name      String
+  surname   String
+  email     String?   @unique
+  phone     String    @unique
+  address   String    @unique
+  createdAt DateTime  @default(now())
+  students  Student[]
+}
+
+enum StaffRole {
+  ADMIN
+  TEACHER
+  ACCOUNTANT
+  NON_TEACHING
+  SUPPORT
+  OTHER
+}
+
+model Staff {
+  id                    String    @id @default(uuid())
+  staffCode             String?   @unique
+  firstName             String
+  lastName              String
+  email                 String?   @unique
+  phone                 String?   @unique
+  address               String?
+  dateOfBirth           DateTime?
+  emergencyContactName  String?
+  emergencyContactPhone String?
+  role                  StaffRole
+  employmentDate        DateTime  @default(now())
+  terminationDate       DateTime?
+  active                Boolean   @default(true)
+  basicSalary           Int       @default(0) // minor units
+
+  admin      Admin?
+  accountant Accountant?
+  teacher    Teacher?
+
+  payrolls StaffPayroll[]
+
+  budgetItems BudgetItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Grade {
+  id    Int @id @default(autoincrement())
+  level Int @unique
+
+  // CBC: stage mapping (e.g. G1-3 LOWER_PRIMARY, G4-6 UPPER_PRIMARY, G7-9 JUNIOR_SECONDARY, G10-12 SENIOR_SECONDARY)
+  stage EducationStage?
+
+  students      Student[]
+  classess      Class[]
+  feeStructures FeeStructure[]
+}
+
+model Class {
+  id       Int    @id @default(autoincrement())
+  name     String @unique
+  capacity Int
+
+  schoolId Int?
+  school   School? @relation(fields: [schoolId], references: [id])
+
+  supervisorId       String?
+  supervisor         Teacher?            @relation(fields: [supervisorId], references: [id])
+  lessons            Lesson[]
+  students           Student[]
+  gradeId            Int
+  grade              Grade               @relation(fields: [gradeId], references: [id])
+  events             Event[]
+  announcements      Announcement[]
+  feeStructures      FeeStructure[]
+  classFeeStructures ClassFeeStructure[]
+
+  // CBC: optional pathway for senior secondary classes
+  pathway EducationPathway?
+}
+
+model Subject {
+  id       Int       @id @default(autoincrement())
+  name     String    @unique
+  teachers Teacher[]
+  lessons  Lesson[]
+}
+
+// CBC: curriculum hierarchy (learning areas → strands → sub-strands → SLOs)
+model LearningArea {
+  id         Int             @id @default(autoincrement())
+  name       String
+  code       String?         @unique
+  stage      EducationStage
+  gradeLevel Int
+
+  strands Strand[]
+
+  @@unique([stage, gradeLevel, name])
+}
+
+model Strand {
+  id             Int          @id @default(autoincrement())
+  learningAreaId Int
+  learningArea   LearningArea @relation(fields: [learningAreaId], references: [id])
+
+  name String
+  code String?
+
+  subStrands SubStrand[]
+}
+
+model SubStrand {
+  id       Int    @id @default(autoincrement())
+  strandId Int
+  strand   Strand @relation(fields: [strandId], references: [id])
+
+  name String
+  code String?
+
+  slos SpecificLearningOutcome[]
+}
+
+model SpecificLearningOutcome {
+  id          Int       @id @default(autoincrement())
+  subStrandId Int
+  subStrand   SubStrand @relation(fields: [subStrandId], references: [id])
+
+  code        String?
+  description String
+
+  StudentSloRecord StudentSloRecord[]
+  LearningObservation LearningObservation[]
+}
+
+// CBC: core competencies and levels
+enum CbcCompetency {
+  COMMUNICATION_COLLABORATION
+  CRITICAL_THINKING_PROBLEM_SOLVING
+  IMAGINATION_CREATIVITY
+  CITIZENSHIP
+  DIGITAL_LITERACY
+  LEARNING_TO_LEARN
+  SELF_EFFICACY
+}
+
+enum CbcCompetencyLevel {
+  EMERGING
+  DEVELOPING
+  PROFICIENT
+  ADVANCED
+}
+
+// CBC: SLO (specific learning outcome) achievement levels for reports
+enum SloAchievementLevel {
+  BELOW_EXPECTATIONS
+  APPROACHING_EXPECTATIONS
+  MEETING_EXPECTATIONS
+}
+
+model Rubric {
+  id          Int            @id @default(autoincrement())
+  name        String
+  description String?
+  stage       EducationStage
+  gradeLevel  Int
+  active      Boolean        @default(true)
+
+  criteria RubricCriterion[]
+  LearningObservation LearningObservation[]
+}
+
+model RubricCriterion {
+  id        Int             @id @default(autoincrement())
+  rubricId  Int
+  rubric    Rubric          @relation(fields: [rubricId], references: [id])
+
+  level      SloAchievementLevel
+  descriptor String
+  LearningObservation LearningObservation[]
+}
+
+model Lesson {
+  id        Int      @id @default(autoincrement())
+  name      String
+  day       Day
+  startTime DateTime
+  endTime   DateTime
+
+  subjectId               Int
+  subject                 Subject                   @relation(fields: [subjectId], references: [id])
+  classId                 Int
+  class                   Class                     @relation(fields: [classId], references: [id])
+  teacherId               String
+  teacher                 Teacher                   @relation(fields: [teacherId], references: [id])
+  exams                   Exam[]
+  assignments             Assignment[]
+  attendances             Attendance[]
+  StudentCompetencyRecord StudentCompetencyRecord[]
+  StudentSloRecord        StudentSloRecord[]
+  LearningObservation     LearningObservation[]
+}
+
+model Exam {
+  id        Int      @id @default(autoincrement())
+  title     String
+  startTime DateTime
+  endTime   DateTime
+
+  lessonId Int
+  lesson   Lesson   @relation(fields: [lessonId], references: [id])
+  results  Result[]
+
+  // CBC: classify assessment type and gate exams
+  kind        AssessmentKind @default(FORMATIVE)
+  cbcGateType CbcGateType?
+
+  // Optional explicit term/year tagging for CBC reports
+  term                    Term?
+  academicYear            Int?
+  AssessmentCompetency    AssessmentCompetency[]
+  StudentCompetencyRecord StudentCompetencyRecord[]
+  StudentSloRecord        StudentSloRecord[]
+  LearningObservation     LearningObservation[]
+}
+
+model Assignment {
+  id        Int      @id @default(autoincrement())
+  title     String
+  startDate DateTime
+  dueDate   DateTime
+
+  lessonId Int
+  lesson   Lesson   @relation(fields: [lessonId], references: [id])
+  results  Result[]
+  StudentSloRecord StudentSloRecord[]
+  LearningObservation LearningObservation[]
+
+  // CBC: classify assessment type
+  kind AssessmentKind @default(FORMATIVE)
+
+  // Optional explicit term/year tagging for CBC reports
+  term                    Term?
+  academicYear            Int?
+  AssessmentCompetency    AssessmentCompetency[]
+  StudentCompetencyRecord StudentCompetencyRecord[]
+
+  clientRequestId    String? @unique
+  createdFromOffline Boolean @default(false)
+}
+
+// CBC: assessment classification
+enum AssessmentKind {
+  FORMATIVE
+  SUMMATIVE
+  NATIONAL_GATE
+}
+
+// CBC: national gate assessment types
+enum CbcGateType {
+  KPSEA
+  KILEA
+  SENIOR_EXIT
+}
+
+// CBC: link exams/assignments to targeted competencies
+model AssessmentCompetency {
+  id           Int           @id @default(autoincrement())
+  examId       Int?
+  exam         Exam?         @relation(fields: [examId], references: [id])
+  assignmentId Int?
+  assignment   Assignment?   @relation(fields: [assignmentId], references: [id])
+  competency   CbcCompetency
+
+  @@index([examId])
+  @@index([assignmentId])
+}
+
+// CBC: per-student competency records over time
+model StudentCompetencyRecord {
+  id           Int                @id @default(autoincrement())
+  studentId    String
+  student      Student            @relation(fields: [studentId], references: [id])
+  teacherId    String
+  teacher      Teacher            @relation(fields: [teacherId], references: [id])
+  competency   CbcCompetency
+  level        CbcCompetencyLevel
+  term         Term
+  academicYear Int
+  comment      String?
+
+  examId       Int?
+  exam         Exam?       @relation(fields: [examId], references: [id])
+  assignmentId Int?
+  assignment   Assignment? @relation(fields: [assignmentId], references: [id])
+  lessonId     Int?
+  lesson       Lesson?     @relation(fields: [lessonId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([studentId, academicYear, term])
+  @@unique([studentId, competency, term, academicYear])
+}
+
+// CBC: per-student SLO (specific learning outcome) records over time
+model StudentSloRecord {
+  id           Int                  @id @default(autoincrement())
+
+  studentId    String
+  student      Student              @relation(fields: [studentId], references: [id])
+
+  sloId        Int
+  slo          SpecificLearningOutcome @relation(fields: [sloId], references: [id])
+
+  level        SloAchievementLevel
+  term         Term
+  academicYear Int
+  comment      String?
+
+  teacherId    String?
+  teacher      Teacher?             @relation(fields: [teacherId], references: [id])
+
+  examId       Int?
+  exam         Exam?                @relation(fields: [examId], references: [id])
+  assignmentId Int?
+  assignment   Assignment?          @relation(fields: [assignmentId], references: [id])
+  lessonId     Int?
+  lesson       Lesson?              @relation(fields: [lessonId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([studentId, academicYear, term])
+  @@index([sloId, academicYear, term])
+  @@unique([studentId, sloId, term, academicYear])
+}
+
+model LearningObservation {
+  id        Int      @id @default(autoincrement())
+
+  studentId String
+  student   Student  @relation(fields: [studentId], references: [id])
+
+  sloId     Int?
+  slo       SpecificLearningOutcome? @relation(fields: [sloId], references: [id])
+
+  competency CbcCompetency?
+
+  lessonId  Int?
+  lesson    Lesson?   @relation(fields: [lessonId], references: [id])
+
+  assignmentId Int?
+  assignment   Assignment? @relation(fields: [assignmentId], references: [id])
+
+  examId    Int?
+  exam      Exam?     @relation(fields: [examId], references: [id])
+
+  teacherId String
+  teacher   Teacher  @relation(fields: [teacherId], references: [id])
+
+  rubricId  Int?
+  rubric    Rubric? @relation(fields: [rubricId], references: [id])
+
+  rubricCriterionId Int?
+  rubricCriterion   RubricCriterion? @relation(fields: [rubricCriterionId], references: [id])
+
+  notes     String?
+  createdAt DateTime @default(now())
+
+  @@index([studentId, createdAt])
+}
+
+model Result {
+  id    Int @id @default(autoincrement())
+  score Int
+
+  examId       Int?
+  exam         Exam?       @relation(fields: [examId], references: [id])
+  assignmentId Int?
+  assignment   Assignment? @relation(fields: [assignmentId], references: [id])
+  studentId    String
+  student      Student     @relation(fields: [studentId], references: [id])
+
+  clientRequestId    String?  @unique
+  createdFromOffline Boolean  @default(false)
+}
+
+model Attendance {
+  id      Int      @id @default(autoincrement())
+  date    DateTime
+  present Boolean
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id])
+  lessonId  Int
+  lesson    Lesson  @relation(fields: [lessonId], references: [id])
+
+  clientRequestId   String? @unique
+  createdFromOffline Boolean @default(false)
+}
+
+model Event {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String
+  startTime   DateTime
+  endTime     DateTime
+
+  classId Int?
+  class   Class? @relation(fields: [classId], references: [id])
+}
+
+model Announcement {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String
+  date        DateTime
+
+  classId Int?
+  class   Class? @relation(fields: [classId], references: [id])
+}
+
+model MessageThread {
+  id        Int      @id @default(autoincrement())
+  subject   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Optional school scoping so threads can be associated with a school when applicable
+  schoolId Int?
+  school   School? @relation(fields: [schoolId], references: [id])
+
+  participants MessageParticipant[]
+  messages     Message[]
+}
+
+model MessageParticipant {
+  id       Int           @id @default(autoincrement())
+  threadId Int
+  thread   MessageThread @relation(fields: [threadId], references: [id])
+
+  // Polymorphic app user id (Admin/Teacher/Student/Parent/Accountant)
+  userId     String
+  lastReadAt DateTime?
+  isDeleted  Boolean   @default(false)
+
+  @@unique([threadId, userId])
+  @@index([userId])
+}
+
+model Message {
+  id       Int           @id @default(autoincrement())
+  threadId Int
+  thread   MessageThread @relation(fields: [threadId], references: [id])
+
+  senderUserId String
+  body         String
+  channel      MessageChannel @default(IN_APP)
+
+  // Future SMS delivery metadata (for Twilio, Africa's Talking, etc.)
+  smsProvider    String?
+  smsStatus      SmsDeliveryStatus?
+  recipientPhone String?
+  externalId     String?
+
+  createdAt DateTime @default(now())
+}
+
+enum MessageChannel {
+  IN_APP
+  SMS
+}
+
+enum SmsDeliveryStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+enum SmsNotificationKind {
+  ANNOUNCEMENT
+  EVENT
+  FEE_REMINDER
+}
+
+enum UserSex {
+  MALE
+  FEMALE
+}
+
+enum Day {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+}
+
+enum ThemePreference {
+  SYSTEM
+  LIGHT
+  DARK
+}
+
+// Finance & Accounting
+model FeeStructure {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  amount      Int // store in minor units (e.g., cents)
+  active      Boolean  @default(true)
+  gradeId     Int?
+  grade       Grade?   @relation(fields: [gradeId], references: [id])
+  classId     Int?
+  class       Class?   @relation(fields: [classId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  studentFees StudentFee[]
+}
+
+model StudentFee {
+  id        String  @id @default(cuid())
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id])
+
+  structureId Int?
+  structure   FeeStructure? @relation(fields: [structureId], references: [id])
+
+  feeCategoryId Int?
+  feeCategory   FeeCategory? @relation(fields: [feeCategoryId], references: [id])
+
+  baseAmount Int?
+  amountDue  Int
+  amountPaid Int       @default(0)
+  dueDate    DateTime?
+  status     String    @default("unpaid") // unpaid, partially_paid, paid
+
+  term         Term?
+  academicYear Int?
+
+  locked            Boolean            @default(false)
+  discountReason    String?
+  sourceStructureId Int?
+  sourceStructure   ClassFeeStructure? @relation("StudentFeeSource", fields: [sourceStructureId], references: [id])
+
+  payments          Payment[]          @relation("StudentFeePayments")
+  mpesaTransactions MpesaTransaction[] @relation("StudentFeeMpesaTransactions")
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@index([studentId, academicYear, term])
+}
+
+model Invoice {
+  id          Int           @id @default(autoincrement())
+  studentId   String
+  student     Student       @relation(fields: [studentId], references: [id])
+  term        Term
+  dueDate     DateTime
+  totalAmount Int // minor units
+  status      InvoiceStatus @default(PENDING)
+  createdAt   DateTime      @default(now())
+  payments    Payment[]     @relation("InvoicePayments")
+}
+
+model Payment {
+  id           Int           @id @default(autoincrement())
+  invoiceId    Int?
+  invoice      Invoice?      @relation("InvoicePayments", fields: [invoiceId], references: [id])
+  studentFeeId String?
+  studentFee   StudentFee?   @relation("StudentFeePayments", fields: [studentFeeId], references: [id])
+  amount       Int // minor units
+  method       PaymentMethod
+  reference    String?
+  paidAt       DateTime      @default(now())
+
+  mpesaTransaction MpesaTransaction? @relation("PaymentMpesaTransaction")
+
+  clientRequestId   String?  @unique
+  createdFromOffline Boolean @default(false)
+}
+
+model MpesaTransaction {
+  id                 Int                    @id @default(autoincrement())
+  studentFeeId       String?
+  studentFee         StudentFee?            @relation("StudentFeeMpesaTransactions", fields: [studentFeeId], references: [id])
+  paymentId          Int?                   @unique
+  payment            Payment?               @relation("PaymentMpesaTransaction", fields: [paymentId], references: [id])
+  phoneNumber        String
+  amount             Int // minor units
+  status             MpesaTransactionStatus @default(PENDING)
+  checkoutRequestId  String?
+  merchantRequestId  String?
+  mpesaReceiptNumber String?
+  rawCallback        Json?
+  reviewReason       MpesaReviewReason?
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+
+  @@index([checkoutRequestId])
+  @@index([mpesaReceiptNumber])
+}
+
+model Expense {
+  id       Int      @id @default(autoincrement())
+  title    String
+  amount   Int // minor units
+  category String
+  date     DateTime @default(now())
+  notes    String?
+
+  schoolId Int?
+  school   School? @relation(fields: [schoolId], references: [id])
+}
+
+enum BudgetStatus {
+  DRAFT
+  APPROVED
+  ARCHIVED
+}
+
+enum BudgetItemKind {
+  OVERHEAD
+  STAFF
+  INCOME
+  OTHER
+}
+
+model BudgetYear {
+  id           Int          @id @default(autoincrement())
+  academicYear Int
+  label        String
+  status       BudgetStatus @default(DRAFT)
+  notes        String?
+  schoolId     Int?
+  school       School?      @relation(fields: [schoolId], references: [id])
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  sections BudgetSection[]
+
+  @@unique([academicYear, schoolId])
+}
+
+model BudgetSection {
+  id           Int        @id @default(autoincrement())
+  budgetYearId Int
+  budgetYear   BudgetYear @relation(fields: [budgetYearId], references: [id])
+
+  name      String
+  sortOrder Int    @default(0)
+
+  items BudgetItem[]
+}
+
+model BudgetItem {
+  id              Int           @id @default(autoincrement())
+  budgetSectionId Int
+  budgetSection   BudgetSection @relation(fields: [budgetSectionId], references: [id])
+
+  name     String
+  kind     BudgetItemKind
+  category String?
+  notes    String?
+
+  staffId String?
+  staff   Staff?  @relation(fields: [staffId], references: [id])
+
+  amounts BudgetAmount[]
+}
+
+model BudgetAmount {
+  id           Int        @id @default(autoincrement())
+  budgetItemId Int
+  budgetItem   BudgetItem @relation(fields: [budgetItemId], references: [id])
+
+  month  Int
+  amount Int // minor units
+
+  @@unique([budgetItemId, month])
+}
+
+model PayrollPeriod {
+  id        Int                 @id @default(autoincrement())
+  year      Int
+  month     Int
+  schoolId  Int?
+  school    School?             @relation(fields: [schoolId], references: [id])
+  status    PayrollPeriodStatus @default(OPEN)
+  createdAt DateTime            @default(now())
+  closedAt  DateTime?
+
+  payrolls StaffPayroll[]
+}
+
+model StaffPayroll {
+  id               Int            @id @default(autoincrement())
+  periodId         Int
+  period           PayrollPeriod  @relation(fields: [periodId], references: [id])
+  staffId          String
+  staff            Staff          @relation(fields: [staffId], references: [id])
+  staffRole        StaffRole
+  basicSalary      Int
+  allowances       Int            @default(0)
+  deductions       Int            @default(0)
+  netPay           Int
+  notes            String?
+  status           PayrollStatus  @default(DRAFT)
+  paidAt           DateTime?
+  paymentMethod    PaymentMethod?
+  paymentReference String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+}
+
+enum InvoiceStatus {
+  PENDING
+  PARTIALLY_PAID
+  PAID
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  POS
+  ONLINE
+  MPESA
+}
+
+enum MpesaTransactionStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+enum MpesaReviewReason {
+  NO_STUDENT
+  MULTIPLE_STUDENTS
+  NO_FEES
+  OTHER
+}
+
+enum Term {
+  TERM1
+  TERM2
+  TERM3
+}
+
+enum FeeFrequency {
+  TERMLY
+  YEARLY
+  ONE_TIME
+}
+
+enum PayrollPeriodStatus {
+  OPEN
+  APPROVED
+  PAID
+  CANCELLED
+}
+
+enum PayrollStatus {
+  DRAFT
+  APPROVED
+  PAID
+}
