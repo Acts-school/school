@@ -115,13 +115,13 @@ const LoginPage = () => {
           {loading ? "Signing in..." : "Sign in"}
         </button>
 
-        <div className="mt-4 text-sm text-gray-600">
+        {/* <div className="mt-4 text-sm text-gray-600">
           <p><strong>Test accounts:</strong></p>
           <p>Admin: admin1 / admin123</p>
           <p>Accountant: accountant1 / accountant123</p>
           <p>Teacher: teacher1 / teacher123</p>
           <p>Student: student1 / student123</p>
-        </div>
+        </div> */}
       </form>
     </div>
   );
