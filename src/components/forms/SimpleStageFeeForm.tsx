@@ -145,6 +145,7 @@ export default function SimpleStageFeeForm() {
           >
             <option value="ECDE">ECDE (PP1–PP2)</option>
             <option value="PRIMARY">Primary (Grade 1–6)</option>
+            <option value="JSS">Junior Secondary (Grade 7–9)</option>
           </select>
         </div>
 

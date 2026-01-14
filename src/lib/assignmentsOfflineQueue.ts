@@ -1,4 +1,4 @@
-const DB_NAME = "schoolama-assignments-offline-writes";
+const DB_NAME = "emmanuelacts-assignments-offline-writes";
 const DB_VERSION = 1;
 const STORE_NAME = "assignmentsQueue";
 

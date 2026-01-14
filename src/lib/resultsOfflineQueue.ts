@@ -1,4 +1,4 @@
-const DB_NAME = "schoolama-results-offline-writes";
+const DB_NAME = "emmanuelacts-results-offline-writes";
 const DB_VERSION = 1;
 const STORE_NAME = "resultsQueue";
 

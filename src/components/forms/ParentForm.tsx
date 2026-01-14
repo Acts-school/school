@@ -147,13 +147,6 @@ const ParentForm = ({ type, data, setOpen, relatedData }: ParentFormProps) => {
           error={errors.phone}
           inputProps={{ required: true }}
         />
-        <InputField
-          label="ID Number"
-          name="address"
-          defaultValue={initialData?.address ?? ""}
-          register={register}
-          error={errors.address}
-        />
         {initialData?.id !== undefined && (
           <InputField
             label="Id"
@@ -212,21 +205,6 @@ const ParentForm = ({ type, data, setOpen, relatedData }: ParentFormProps) => {
                   register={register}
                   error={errors.studentPhone}
                   inputProps={{ required: true }}
-                />
-                <InputField
-                  label="Student Blood Type"
-                  name="studentBloodType"
-                  defaultValue=""
-                  register={register}
-                  error={errors.studentBloodType}
-                />
-                <InputField
-                  label="Student Birthday"
-                  name="studentBirthday"
-                  defaultValue=""
-                  register={register}
-                  error={errors.studentBirthday}
-                  type="date"
                 />
                 <div className="flex flex-col gap-2 w-full md:w-1/4">
                   <label className="text-xs text-gray-500">Student Sex</label>

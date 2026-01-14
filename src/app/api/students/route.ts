@@ -22,7 +22,9 @@ export async function GET(req: NextRequest) {
     const offset = (page - 1) * limit;
 
     // Query filter
-    const where: Prisma.StudentWhereInput = {};
+    const where: Prisma.StudentWhereInput = {
+      status: "ACTIVE",
+    };
 
     if (search) {
       where.OR = [
@@ -158,8 +160,11 @@ export async function DELETE(req: NextRequest) {
       }
     }
 
-    await prisma.student.delete({
+    await prisma.student.update({
       where: { id },
+      data: {
+        status: "LEFT",
+      },
     });
 
     return NextResponse.json({ 

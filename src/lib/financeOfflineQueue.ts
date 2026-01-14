@@ -1,6 +1,6 @@
 import type { PaymentMethod } from "@/lib/fees.actions";
 
-const DB_NAME = "schoolama-offline-writes";
+const DB_NAME = "emmanuelacts-offline-writes";
 const DB_VERSION = 1;
 const STORE_NAME = "financeQueue";
 

@@ -70,8 +70,11 @@ export const studentSchema = z.object({
   phone: z.string().min(1, { message: "Phone is required!" }),
   address: z.string(),
   img: z.string().optional(),
-  bloodType: z.string().min(1, { message: "Blood Type is required!" }),
-  birthday: z.coerce.date({ message: "Birthday is required!" }),
+  bloodType: z
+    .string()
+    .optional()
+    .or(z.literal("")),
+  birthday: z.coerce.date().optional(),
   sex: z.enum(["MALE", "FEMALE"], { message: "Sex is required!" }),
   gradeId: z.coerce.number().min(1, { message: "Grade is required!" }),
   classId: z.coerce.number().min(1, { message: "Class is required!" }),
@@ -99,7 +102,7 @@ const parentBaseSchema = z.object({
     .optional()
     .or(z.literal("")),
   phone: z.string().min(1, { message: "Phone is required!" }),
-  address: z.string().min(1, { message: "ID number is required!" }),
+  address: z.string().optional().or(z.literal("")),
 });
 
 const parentStudentExtensionSchema = z.object({
@@ -131,13 +134,8 @@ const parentStudentExtensionSchema = z.object({
     .string()
     .min(1, { message: "Student phone is required when creating a student!" })
     .optional(),
-  studentBloodType: z
-    .string()
-    .min(1, { message: "Student blood Type is required!" })
-    .optional(),
-  studentBirthday: z.coerce.date({
-    message: "Student birthday is required!",
-  }).optional(),
+  studentBloodType: z.string().optional().or(z.literal("")),
+  studentBirthday: z.coerce.date().optional(),
   studentSex: z.enum(["MALE", "FEMALE"], {
     message: "Student sex is required!",
   }).optional(),
@@ -175,22 +173,6 @@ export const parentSchema = parentBaseSchema
         code: z.ZodIssueCode.custom,
         message: "Student phone is required when creating a student!",
         path: ["studentPhone"],
-      });
-    }
-
-    if (!data.studentBloodType) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Student blood type is required when creating a student!",
-        path: ["studentBloodType"],
-      });
-    }
-
-    if (!data.studentBirthday) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Student birthday is required when creating a student!",
-        path: ["studentBirthday"],
       });
     }
 

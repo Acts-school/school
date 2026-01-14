@@ -221,14 +221,23 @@ export const createClass = async (
   currentState: CurrentState,
   data: ClassSchema,
 ) => {
+  "use server";
+
   try {
     await ensurePermission("classes.write");
+
+    const { schoolId } = await getCurrentSchoolContext();
+
+    if (schoolId === null) {
+      return { success: false, error: true };
+    }
 
     await prisma.class.create({
       data: {
         name: data.name,
         capacity: data.capacity,
         gradeId: data.gradeId,
+        schoolId,
         ...(data.supervisorId ? { supervisorId: data.supervisorId } : {}),
       },
     });
@@ -245,6 +254,8 @@ export const updateClass = async (
   currentState: CurrentState,
   data: ClassSchema,
 ) => {
+  "use server";
+
   if (!data.id) {
     return { success: false, error: true };
   }
@@ -375,6 +386,7 @@ export const updateTeacher = async (
     revalidatePath("/list/teachers");
     return { success: true, error: false };
   } catch (err) {
+    // eslint-disable-next-line no-console
     console.log(err);
     return { success: false, error: true };
   }
@@ -398,12 +410,12 @@ export const createParent = async (
     const studentSex = data.studentSex;
     const studentGradeId = data.studentGradeId;
     const studentClassId = data.studentClassId;
+    const studentPhone = data.studentPhone;
 
     if (
       !studentName ||
       !studentSurname ||
-      !studentBloodType ||
-      !studentBirthday ||
+      !studentPhone ||
       !studentSex ||
       typeof studentGradeId !== "number" ||
       typeof studentClassId !== "number"
@@ -458,7 +470,8 @@ export const createParent = async (
           surname: data.surname,
           email: data.email && data.email !== "" ? data.email : null,
           phone: data.phone,
-          address: data.address,
+          address: data.address && data.address !== "" ? data.address : null,
+          ...(schoolId !== null ? { schoolId } : {}),
         },
       });
 
@@ -469,17 +482,26 @@ export const createParent = async (
           name: studentName,
           surname: studentSurname,
           email: data.studentEmail && data.studentEmail !== "" ? data.studentEmail : null,
-          phone: data.studentPhone ?? null,
+          phone: studentPhone ?? null,
           address: "",
-          bloodType: studentBloodType,
+          bloodType:
+            studentBloodType && studentBloodType !== "" ? studentBloodType : null,
           sex: studentSex,
-          birthday: studentBirthday,
+          birthday: studentBirthday ?? null,
           gradeId: studentGradeId,
           classId: studentClassId,
           parentId: parent.id,
           ...(admissionYear !== null ? { admissionYear } : {}),
           ...(admissionLevel !== null ? { admissionLevel } : {}),
           ...(admissionSerial !== null ? { admissionSerial } : {}),
+        },
+      });
+
+      await tx.studentParent.create({
+        data: {
+          studentId: student.id,
+          parentId: parent.id,
+          isPrimary: true,
         },
       });
 
@@ -564,14 +586,14 @@ export const updateParent = async (
       surname: data.surname,
       email: data.email && data.email !== "" ? data.email : null,
       phone: data.phone,
-      address: data.address,
+      address: data.address && data.address !== "" ? data.address : null,
     } as {
       username: string;
       name: string;
       surname: string;
       email: string | null;
       phone: string;
-      address: string;
+      address: string | null;
       password?: string;
     };
 
@@ -1322,7 +1344,7 @@ export const createStudent = async (
     }
 
     const parent = await prisma.parent.findUnique({
-      where: { address: data.parentId },
+      where: { id: data.parentId },
       select: { id: true },
     });
 
@@ -1332,6 +1354,87 @@ export const createStudent = async (
 
     const hashedPassword = await bcrypt.hash(data.password || "student123", 10);
     const { academicYear } = await getSchoolSettingsDefaults();
+
+    const phone = data.phone || null;
+
+    // Re-enrollment path: if there is an existing non-ACTIVE student with the same phone,
+    // treat this as re-activating that student instead of creating a new row.
+    let existingInactiveStudentId: string | null = null;
+
+    if (phone) {
+      const existingInactive = await prisma.student.findFirst({
+        where: {
+          phone,
+          status: { in: ["LEFT", "ALUMNI"] },
+        },
+        orderBy: { createdAt: "desc" },
+        select: { id: true },
+      });
+
+      if (existingInactive) {
+        existingInactiveStudentId = existingInactive.id;
+      }
+    }
+
+    if (existingInactiveStudentId) {
+      const studentId = existingInactiveStudentId;
+
+      await prisma.student.update({
+        where: { id: studentId },
+        data: {
+          name: data.name,
+          surname: data.surname,
+          email: data.email || null,
+          phone,
+          address: data.address,
+          img: data.img || null,
+          bloodType: data.bloodType && data.bloodType !== "" ? data.bloodType : null,
+          sex: data.sex,
+          birthday: data.birthday ?? null,
+          gradeId: data.gradeId,
+          classId: data.classId,
+          parentId: parent.id,
+          password: hashedPassword,
+          status: "ACTIVE",
+        },
+      });
+
+      await prisma.studentParent.deleteMany({ where: { studentId } });
+      await prisma.studentParent.create({
+        data: {
+          studentId,
+          parentId: parent.id,
+          isPrimary: true,
+        },
+      });
+
+      try {
+        // eslint-disable-next-line no-console
+        console.log("[fees:auto-apply] Triggering auto-fee apply for re-enrolled student", {
+          studentId,
+          classId: data.classId,
+        });
+        await applyClassFeeStructuresToStudent({
+          studentId,
+          classId: data.classId,
+          academicYear,
+        });
+      } catch (applyError) {
+        // eslint-disable-next-line no-console
+        console.log(
+          "[fees:auto-apply] Failed to apply class fee structures for re-enrolled student",
+          {
+            studentId,
+            classId: data.classId,
+            academicYear,
+            error: applyError,
+          },
+        );
+      }
+
+      revalidatePath("/list/students");
+      return { success: true, error: false };
+    }
 
     let usernameToUse = data.username && data.username !== "" ? data.username : null;
     let admissionYear: number | null = null;
@@ -1353,18 +1456,26 @@ export const createStudent = async (
         name: data.name,
         surname: data.surname,
         email: data.email || null,
-        phone: data.phone || null,
+        phone,
         address: data.address,
         img: data.img || null,
-        bloodType: data.bloodType,
+        bloodType: data.bloodType && data.bloodType !== "" ? data.bloodType : null,
         sex: data.sex,
-        birthday: data.birthday,
+        birthday: data.birthday ?? null,
         gradeId: data.gradeId,
         classId: data.classId,
         parentId: parent.id,
         ...(admissionYear !== null ? { admissionYear } : {}),
         ...(admissionLevel !== null ? { admissionLevel } : {}),
         ...(admissionSerial !== null ? { admissionSerial } : {}),
+      },
+    });
+
+    await prisma.studentParent.create({
+      data: {
+        studentId: student.id,
+        parentId: parent.id,
+        isPrimary: true,
       },
     });
 
@@ -1419,7 +1530,7 @@ export const updateStudent = async (
     });
 
     const parent = await prisma.parent.findUnique({
-      where: { address: data.parentId },
+      where: { id: data.parentId },
       select: { id: true },
     });
 
@@ -1434,9 +1545,9 @@ export const updateStudent = async (
       phone: data.phone || null,
       address: data.address,
       img: data.img || null,
-      bloodType: data.bloodType,
+      bloodType: data.bloodType && data.bloodType !== "" ? data.bloodType : null,
       sex: data.sex,
-      birthday: data.birthday,
+      birthday: data.birthday ?? null,
       gradeId: data.gradeId,
       classId: data.classId,
       parentId: parent.id,
@@ -1452,6 +1563,15 @@ export const updateStudent = async (
         id: data.id,
       },
       data: updateData,
+    });
+
+    await prisma.studentParent.deleteMany({ where: { studentId: data.id } });
+    await prisma.studentParent.create({
+      data: {
+        studentId: data.id,
+        parentId: parent.id,
+        isPrimary: true,
+      },
     });
 
     if (existing && typeof existing.classId === "number" && existing.classId !== data.classId) {

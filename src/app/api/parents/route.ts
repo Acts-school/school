@@ -40,6 +40,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     if (schoolId !== null) {
       where.students = {
         some: {
+          status: "ACTIVE",
           class: {
             schoolId,
           },

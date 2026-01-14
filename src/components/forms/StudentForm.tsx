@@ -18,6 +18,7 @@ import { studentSchema, type StudentSchema } from "@/lib/formValidationSchemas";
 import { createStudent, updateStudent } from "@/lib/actions";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
+import { useParentsList } from "@/hooks/useParents";
 
 type StudentFormProps = {
   type: "create" | "update";
@@ -59,6 +60,7 @@ const StudentForm = ({ type, data, setOpen, relatedData }: StudentFormProps) => 
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<StudentSchema>({
     resolver: zodResolver(studentSchema),
@@ -70,6 +72,8 @@ const StudentForm = ({ type, data, setOpen, relatedData }: StudentFormProps) => 
   const [imgUrl, setImgUrl] = useState<string | null>(initialData?.img ?? null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [parentSearch, setParentSearch] = useState("");
+  const [selectedParentId, setSelectedParentId] = useState<string>(initialData?.parentId ?? "");
 
   const [state, formAction] = useActionState(
     type === "create" ? createStudent : updateStudent,
@@ -147,10 +151,24 @@ const StudentForm = ({ type, data, setOpen, relatedData }: StudentFormProps) => 
     }
   }, [state, router, type, setOpen]);
 
+  useEffect(() => {
+    if (initialData?.parentId) {
+      setValue("parentId", initialData.parentId);
+      setSelectedParentId(initialData.parentId);
+    }
+  }, [initialData?.parentId, setValue]);
+
   const { grades = [], classes = [] } =
     relatedData && typeof relatedData === "object"
       ? ((relatedData as StudentFormRelatedData) ?? { grades: [], classes: [] })
       : { grades: [], classes: [] };
+
+  const { data: parentsResponse, isLoading: isParentsLoading } = useParentsList({
+    search: parentSearch,
+    limit: 50,
+  });
+
+  const parents = parentsResponse?.data ?? [];
 
   const getGradeLabel = (level: number): string => {
     if (level === 1) {
@@ -253,32 +271,38 @@ const StudentForm = ({ type, data, setOpen, relatedData }: StudentFormProps) => 
           error={errors.address}
           hidden
         />
-        <InputField
-          label="Blood Type"
-          name="bloodType"
-          defaultValue={initialData?.bloodType ?? ""}
-          register={register}
-          error={errors.bloodType}
-        />
-        <InputField
-          label="Birthday"
-          name="birthday"
-          defaultValue={
-            initialData?.birthday
-              ? new Date(initialData.birthday).toISOString().slice(0, 10)
-              : ""
-          }
-          register={register}
-          error={errors.birthday}
-          type="date"
-        />
-        <InputField
-          label="Parent Id"
-          name="parentId"
-          defaultValue={initialData?.parentId ?? ""}
-          register={register}
-          error={errors.parentId}
-        />
+        <div className="flex flex-col gap-2 w-full md:w-1/4">
+          <label className="text-xs text-gray-500">Parent</label>
+          <input
+            type="text"
+            className="ring-[1.5px] ring-gray-300 p-2 rounded-md text-sm w-full"
+            placeholder="Search by name or phone"
+            value={parentSearch}
+            onChange={(event) => setParentSearch(event.target.value)}
+          />
+          <select
+            className="ring-[1.5px] ring-gray-300 p-2 rounded-md text-sm w-full"
+            value={selectedParentId}
+            onChange={(event) => {
+              const value = event.target.value;
+              setSelectedParentId(value);
+              setValue("parentId", value, { shouldValidate: true });
+            }}
+            disabled={isParentsLoading}
+          >
+            <option value="">Select parent</option>
+            {parents.map((parent) => (
+              <option key={parent.id} value={parent.id}>
+                {parent.name} {parent.surname} ({parent.phone})
+              </option>
+            ))}
+          </select>
+          {errors.parentId?.message && (
+            <p className="text-xs text-red-400">
+              {errors.parentId.message.toString()}
+            </p>
+          )}
+        </div>
         {initialData?.id !== undefined && (
           <InputField
             label="Id"

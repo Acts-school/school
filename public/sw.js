@@ -1,4 +1,4 @@
-const CACHE_NAME = "schoolama-pwa-v1";
+const CACHE_NAME = "emmanuelacts-pwa-v1";
 // Only cache stable static assets here. Do NOT cache "/" because it may
 // respond with a redirect (e.g. auth redirect), which breaks navigation
 // when served from the service worker cache.

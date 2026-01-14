@@ -59,7 +59,7 @@ const LoginPage = () => {
       >
         <div className="flex items-center gap-2 mb-4">
           <Image src="/logo.png" alt="" width={24} height={24} />
-          <h1 className="text-xl font-bold">SchooLama</h1>
+          <h1 className="text-xl font-bold">EmmanuelActs</h1>
         </div>
         <h2 className="text-gray-400 mb-4">Sign in to your account</h2>
         

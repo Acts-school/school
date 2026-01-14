@@ -1,4 +1,4 @@
-const DB_NAME = "schoolama-offline";
+const DB_NAME = "emmanuelacts-offline";
 const DB_VERSION = 1;
 const STORE_NAME = "queryCache";
 

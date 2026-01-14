@@ -110,6 +110,7 @@ model School {
   budgetYears    BudgetYear[]
   payrolls       PayrollPeriod[]
   messageThreads MessageThread[]
+  parents        Parent[]
 }
 
 model SchoolUser {
@@ -183,9 +184,10 @@ model Student {
   phone                   String?                   @unique
   address                 String
   img                     String?
-  bloodType               String
+  bloodType               String?
   sex                     UserSex
   createdAt               DateTime                  @default(now())
+  status                  StudentStatus             @default(ACTIVE)
   parentId                String
   parent                  Parent                    @relation(fields: [parentId], references: [id])
   classId                 Int
@@ -196,7 +198,7 @@ model Student {
   results                 Result[]
   invoices                Invoice[]
   studentFees             StudentFee[]
-  birthday                DateTime
+  birthday                DateTime?
   StudentCompetencyRecord StudentCompetencyRecord[]
   StudentSloRecord        StudentSloRecord[]
   LearningObservation     LearningObservation[]
@@ -204,6 +206,13 @@ model Student {
   admissionYear           Int?
   admissionLevel          Int?
   admissionSerial         Int?
+  parentLinks             StudentParent[]
+}
+
+enum StudentStatus {
+  ACTIVE
+  LEFT
+  ALUMNI
 }
 
 model Teacher {
@@ -245,9 +254,25 @@ model Parent {
   surname   String
   email     String?   @unique
   phone     String    @unique
-  address   String    @unique
+  address   String?
   createdAt DateTime  @default(now())
   students  Student[]
+  studentLinks StudentParent[]
+  schoolId  Int?
+  school    School?   @relation(fields: [schoolId], references: [id])
+}
+
+model StudentParent {
+  id           String   @id @default(uuid())
+  studentId    String
+  parentId     String
+  relationship String?
+  isPrimary    Boolean  @default(false)
+
+  student Student @relation(fields: [studentId], references: [id])
+  parent  Parent  @relation(fields: [parentId], references: [id])
+
+  @@unique([studentId, parentId])
 }
 
 enum StaffRole {
@@ -302,7 +327,7 @@ model Grade {
 
 model Class {
   id       Int    @id @default(autoincrement())
-  name     String @unique
+  name     String
   capacity Int
 
   schoolId Int?
@@ -321,6 +346,8 @@ model Class {
 
   // CBC: optional pathway for senior secondary classes
   pathway EducationPathway?
+
+  @@unique([schoolId, name])
 }
 
 model Subject {

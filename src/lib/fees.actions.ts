@@ -350,7 +350,7 @@ export const createFeeStructure = async (
   }
 };
 
-export type StageGroup = "ECDE" | "PRIMARY";
+export type StageGroup = "ECDE" | "PRIMARY" | "JSS";
 
 export type SimpleFeeFrequency = "TERMLY" | "YEARLY" | "ONE_TIME";
 
@@ -401,7 +401,7 @@ export const createStageFeeDefinitionAndApply = async (
 
     const frequencyLiteral: FeeFrequencyLiteral = frequency;
 
-    // Resolve grades by stage group (ECDE vs Primary)
+    // Resolve grades by stage group (ECDE / Primary / JSS)
     const gradeWhere: {
       stage?: EducationStageLiteral | { in?: ReadonlyArray<EducationStageLiteral> } | null;
       level?: { gte?: number; lte?: number };
@@ -409,9 +409,12 @@ export const createStageFeeDefinitionAndApply = async (
 
     if (stageGroup === "ECDE") {
       gradeWhere.stage = "PRE_PRIMARY";
-    } else {
+    } else if (stageGroup === "PRIMARY") {
       // Primary: rely primarily on level range so it still works if Grade.stage is not populated
       gradeWhere.level = { gte: 1, lte: 6 };
+    } else if (stageGroup === "JSS") {
+      // Junior Secondary: levels 7-9
+      gradeWhere.level = { gte: 7, lte: 9 };
     }
 
     const grades = await stageFeePrisma.grade.findMany({
