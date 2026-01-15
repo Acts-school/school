@@ -8,8 +8,8 @@ interface Student {
   username: string;
   name: string;
   surname: string;
-  email: string;
-  phone: string;
+  email: string | null;
+  phone: string | null;
   address: string;
   img?: string;
   class: { name: string };

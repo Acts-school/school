@@ -261,7 +261,6 @@ const StudentForm = ({ type, data, setOpen, relatedData }: StudentFormProps) => 
           defaultValue={initialData?.phone ?? ""}
           register={register}
           error={errors.phone}
-          inputProps={{ required: true }}
         />
         <InputField
           label="Address"

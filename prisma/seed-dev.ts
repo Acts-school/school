@@ -70,16 +70,30 @@ async function seedDev(): Promise<void> {
     },
   });
 
-  const schoolAdmin1 = await prisma.admin.create({
+  const school1Admin1 = await prisma.admin.create({
     data: {
-      username: "admin_school1",
+      username: "admin_school1_a",
       password: adminPasswordHash,
     },
   });
 
-  const schoolAdmin2 = await prisma.admin.create({
+  const school1Admin2 = await prisma.admin.create({
     data: {
-      username: "admin_school2",
+      username: "admin_school1_b",
+      password: adminPasswordHash,
+    },
+  });
+
+  const school2Admin1 = await prisma.admin.create({
+    data: {
+      username: "admin_school2_a",
+      password: adminPasswordHash,
+    },
+  });
+
+  const school2Admin2 = await prisma.admin.create({
+    data: {
+      username: "admin_school2_b",
       password: adminPasswordHash,
     },
   });
@@ -173,20 +187,31 @@ async function seedDev(): Promise<void> {
       },
       {
         schoolId: school1.id,
-        userId: schoolAdmin1.id,
+        userId: school1Admin1.id,
+        role: "SCHOOL_ADMIN",
+      },
+      {
+        schoolId: school1.id,
+        userId: school1Admin2.id,
         role: "SCHOOL_ADMIN",
       },
       {
         schoolId: school2.id,
-        userId: schoolAdmin2.id,
+        userId: school2Admin1.id,
+        role: "SCHOOL_ADMIN",
+      },
+      {
+        schoolId: school2.id,
+        userId: school2Admin2.id,
         role: "SCHOOL_ADMIN",
       },
     ],
   });
 
   console.log("✅ Dev seed complete. Test logins:");
-  console.log("   Super admin:       superadmin / admin123");
-  console.log("   School admins:     admin_school1, admin_school2 / admin123\n");
+  console.log("   Super admin:           superadmin / admin123");
+  console.log("   School 1 admins:       admin_school1_a, admin_school1_b / admin123");
+  console.log("   School 2 admins:       admin_school2_a, admin_school2_b / admin123\n");
 }
 
 seedDev()

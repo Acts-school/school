@@ -67,7 +67,7 @@ export const studentSchema = z.object({
     .email({ message: "Invalid email address!" })
     .optional()
     .or(z.literal("")),
-  phone: z.string().min(1, { message: "Phone is required!" }),
+  phone: z.string().optional().or(z.literal("")),
   address: z.string(),
   img: z.string().optional(),
   bloodType: z
@@ -130,10 +130,7 @@ const parentStudentExtensionSchema = z.object({
     .email({ message: "Invalid student email address!" })
     .optional()
     .or(z.literal("")),
-  studentPhone: z
-    .string()
-    .min(1, { message: "Student phone is required when creating a student!" })
-    .optional(),
+  studentPhone: z.string().optional().or(z.literal("")),
   studentBloodType: z.string().optional().or(z.literal("")),
   studentBirthday: z.coerce.date().optional(),
   studentSex: z.enum(["MALE", "FEMALE"], {
@@ -165,14 +162,6 @@ export const parentSchema = parentBaseSchema
         code: z.ZodIssueCode.custom,
         message: "Student last name is required when creating a student!",
         path: ["studentSurname"],
-      });
-    }
-
-    if (!data.studentPhone) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Student phone is required when creating a student!",
-        path: ["studentPhone"],
       });
     }
 

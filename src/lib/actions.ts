@@ -415,7 +415,6 @@ export const createParent = async (
     if (
       !studentName ||
       !studentSurname ||
-      !studentPhone ||
       !studentSex ||
       typeof studentGradeId !== "number" ||
       typeof studentClassId !== "number"
