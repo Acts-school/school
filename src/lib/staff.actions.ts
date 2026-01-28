@@ -51,6 +51,46 @@ export const updateStaffRole = async (
   }
 };
 
+type StaffDeactivateArgs = {
+  where: { id: string };
+  data: { active: boolean; terminationDate: Date };
+};
+
+type StaffDeactivateClient = {
+  staff: {
+    update: (args: StaffDeactivateArgs) => Promise<StaffRow>;
+  };
+};
+
+export const deleteStaff = async (
+  _state: { success: boolean; error: boolean; message?: string },
+  data: DeleteStaffInput,
+): Promise<{ success: boolean; error: boolean; message?: string }> => {
+  try {
+    await ensurePermission(["payroll.write"]);
+
+    const staffDeletePrisma = prisma as unknown as StaffDeactivateClient;
+
+    await staffDeletePrisma.staff.update({
+      where: { id: data.id },
+      data: {
+        active: false,
+        terminationDate: new Date(),
+      },
+    });
+
+    revalidatePath("/finance/staff");
+    return { success: true, error: false };
+  } catch (e) {
+    console.error(e);
+    return {
+      success: false,
+      error: true,
+      message: "Unexpected error while deleting staff member.",
+    };
+  }
+};
+
 type StaffFindManyArgs = {
   orderBy: { createdAt: "asc" | "desc" };
   select: {
@@ -135,6 +175,9 @@ type PrismaStaffClient = {
 
 const staffPrisma = prisma as unknown as PrismaStaffClient;
 
+// NOTE: In the finance/payroll UI, the `email` field on Staff is used
+// to store the staff member's account number for payments/exports.
+
 export type CreateStaffInput = {
   firstName: string;
   lastName: string;
@@ -147,6 +190,10 @@ export type CreateStaffInput = {
 export type UpdateStaffRoleInput = {
   id: string;
   role: StaffRole;
+};
+
+export type DeleteStaffInput = {
+  id: string;
 };
 
 export const createStaff = async (

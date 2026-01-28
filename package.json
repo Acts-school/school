@@ -14,13 +14,12 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "vercel-build": "prisma migrate deploy && prisma generate && next build",
-    "seed:learning-areas": "ts-node prisma/seed-learning-areas.ts",
-    "seed:dev": "ts-node prisma/seed-dev.ts"
+    "seed:learning-areas": "ts-node --compiler-options \"{\\\"module\\\":\\\"CommonJS\\\"}\" prisma/seed-learning-areas.ts",
+    "seed:dev": "ts-node --compiler-options \"{\\\"module\\\":\\\"CommonJS\\\"}\" prisma/seed-dev.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
     "@prisma/client": "^5.20.0",
-    "@react-pdf/renderer": "^3.4.5",
     "@sentry/nextjs": "^8.38.0",
     "@tanstack/react-query": "^5.90.2",
     "@tanstack/react-query-devtools": "^5.90.2",
@@ -39,7 +38,8 @@
     "react-hook-form": "^7.52.2",
     "react-toastify": "^10.0.6",
     "recharts": "^2.12.7",
-    "zod": "^3.23.8"
+    "zod": "^3.23.8",
+    "playwright": "^1.48.0"
   },
   "devDependencies": {
     "@types/bcryptjs": "^3.0.0",

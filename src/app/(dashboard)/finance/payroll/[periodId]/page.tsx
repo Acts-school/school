@@ -4,6 +4,7 @@ import Breadcrumbs from "@/components/Breadcrumbs";
 import StaffPayrollRowForm from "@/components/forms/StaffPayrollRowForm";
 import ClosePayrollPeriodButton from "@/components/ClosePayrollPeriodButton";
 import PrefillPayrollFromBudgetButton from "@/components/PrefillPayrollFromBudgetButton";
+import AddStaffPayrollRowButton from "@/components/AddStaffPayrollRowButton";
 import type { PaymentMethod } from "@/lib/fees.actions";
 
 const formatKES = (minor: number): string => `KES ${((minor ?? 0) / 100).toFixed(2)}`;
@@ -65,6 +66,13 @@ export default async function PayrollPeriodDetailPage({
     paymentMethod: PaymentMethod | null;
     paymentReference: string | null;
     paidAt: Date | null;
+  };
+
+  type StaffOptionRow = {
+    id: string;
+    firstName: string;
+    lastName: string;
+    role: "ADMIN" | "TEACHER" | "ACCOUNTANT" | "NON_TEACHING" | "SUPPORT" | "OTHER";
   };
 
   type StaffPayrollOrderBy = {
@@ -156,6 +164,9 @@ export default async function PayrollPeriodDetailPage({
     staffPayroll: {
       findMany: (args: StaffPayrollFindManyArgs) => Promise<StaffPayrollRow[]>;
     };
+    staff: {
+      findMany: (args: { where: { active: boolean }; select: { id: true; firstName: true; lastName: true; role: true } }) => Promise<StaffOptionRow[]>;
+    };
     budgetYear: {
       findFirst: (args: BudgetYearFindFirstArgs) => Promise<BudgetYearRow | null>;
     };
@@ -172,7 +183,7 @@ export default async function PayrollPeriodDetailPage({
     throw new Error("Payroll period not found");
   }
 
-  const [rows, approvedBudgetYear] = await Promise.all([
+  const [rows, approvedBudgetYear, activeStaff] = await Promise.all([
     payrollPrisma.staffPayroll.findMany({
       where: { periodId },
       select: {
@@ -223,6 +234,15 @@ export default async function PayrollPeriodDetailPage({
         },
       },
     }),
+    payrollPrisma.staff.findMany({
+      where: { active: true },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+      },
+    }),
   ]);
 
   const totalNet = rows.reduce((sum, r) => sum + r.netPay, 0);
@@ -245,6 +265,9 @@ export default async function PayrollPeriodDetailPage({
   }
 
   const staffVariance = totalNet - budgetStaffForPeriod;
+
+  const existingStaffIds = new Set(rows.map((row) => row.staff.id));
+  const availableStaff = activeStaff.filter((staff) => !existingStaffIds.has(staff.id));
 
   return (
     <div className="p-4 flex flex-col gap-6">
@@ -278,10 +301,27 @@ export default async function PayrollPeriodDetailPage({
         </div>
         <div className="flex flex-row gap-2">
           {period.status === "OPEN" && (
-            <PrefillPayrollFromBudgetButton periodId={period.id} />
+            <>
+              <AddStaffPayrollRowButton
+                periodId={period.id}
+                periodStatus={period.status}
+                availableStaff={availableStaff}
+              />
+              <PrefillPayrollFromBudgetButton periodId={period.id} />
+            </>
           )}
           {period.status !== "PAID" && period.status !== "CANCELLED" && (
             <ClosePayrollPeriodButton periodId={period.id} />
+          )}
+          {(period.status === "APPROVED" || period.status === "PAID") && (
+            <a
+              href={`/finance/payroll/${period.id}/print`}
+              target="_blank"
+              rel="noreferrer"
+              className="px-3 py-2 text-sm rounded-md bg-blue-600 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Print payroll
+            </a>
           )}
         </div>
       </div>
@@ -328,6 +368,7 @@ export default async function PayrollPeriodDetailPage({
                     paymentMethod={r.paymentMethod}
                     paymentReference={r.paymentReference}
                     paidAtIso={r.paidAt ? new Date(r.paidAt).toISOString().slice(0, 16) : null}
+                    periodStatus={period.status}
                   />
                 </td>
               </tr>

@@ -4,7 +4,14 @@ import { useActionState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
-import { updateStaffPayroll, type UpdateStaffPayrollInput, type PayrollStatus } from "@/lib/payroll.actions";
+import {
+  updateStaffPayroll,
+  deleteStaffPayrollRow,
+  type UpdateStaffPayrollInput,
+  type DeleteStaffPayrollRowInput,
+  type PayrollStatus,
+  type PayrollPeriodStatus,
+} from "@/lib/payroll.actions";
 import type { PaymentMethod } from "@/lib/fees.actions";
 
 const paymentMethods: PaymentMethod[] = ["CASH", "BANK_TRANSFER", "POS", "ONLINE"];
@@ -19,6 +26,7 @@ export type StaffPayrollRowFormProps = {
   paymentMethod: PaymentMethod | null;
   paymentReference: string | null;
   paidAtIso: string | null;
+  periodStatus: PayrollPeriodStatus;
 };
 
 export default function StaffPayrollRowForm({
@@ -30,6 +38,7 @@ export default function StaffPayrollRowForm({
   paymentMethod,
   paymentReference,
   paidAtIso,
+  periodStatus,
 }: StaffPayrollRowFormProps) {
   const router = useRouter();
 
@@ -48,6 +57,24 @@ export default function StaffPayrollRowForm({
   });
 
   const [state, formAction] = useActionState(updateStaffPayroll, { success: false, error: false });
+  type DeleteRowActionState = {
+    success: boolean;
+    error: boolean;
+    message?: string;
+  };
+
+  type DeleteRowAction = (
+    state: DeleteRowActionState,
+    payload: DeleteStaffPayrollRowInput,
+  ) => Promise<DeleteRowActionState>;
+
+  const [deleteState, deleteAction] = useActionState<DeleteRowActionState, DeleteStaffPayrollRowInput>(
+    deleteStaffPayrollRow as unknown as DeleteRowAction,
+    {
+      success: false,
+      error: false,
+    },
+  );
 
   useEffect(() => {
     if (state.success) {
@@ -58,6 +85,16 @@ export default function StaffPayrollRowForm({
       toast.error("Error updating payroll row");
     }
   }, [state, router]);
+
+  useEffect(() => {
+    if (deleteState.success) {
+      toast("Payroll row deleted");
+      router.refresh();
+    }
+    if (deleteState.error) {
+      toast.error(deleteState.message ?? "Error deleting payroll row");
+    }
+  }, [deleteState, router]);
 
   const onSubmit = handleSubmit((data) => {
     const payload: UpdateStaffPayrollInput = {
@@ -74,6 +111,23 @@ export default function StaffPayrollRowForm({
 
     formAction(payload);
   });
+
+  const handleDelete = () => {
+    if (periodStatus !== "OPEN") {
+      return;
+    }
+
+    const confirmed = window.confirm("Delete this payroll row?");
+    if (!confirmed) {
+      return;
+    }
+
+    const payload: DeleteStaffPayrollRowInput = {
+      id,
+    };
+
+    deleteAction(payload);
+  };
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-1 text-xs">
@@ -154,6 +208,15 @@ export default function StaffPayrollRowForm({
             {...register("notes")}
           />
         </div>
+        {periodStatus === "OPEN" && (
+          <button
+            type="button"
+            onClick={handleDelete}
+            className="bg-red-500 text-white px-3 py-1 rounded-md text-[11px] disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Delete
+          </button>
+        )}
         <button
           type="submit"
           disabled={isSubmitting}

@@ -358,3 +358,151 @@ export const importBudgetFromCsv = async (
     return { success: false, error: true, message: "Failed to import budget CSV" };
   }
 };
+
+export type CreateBudgetItemMonthlyAmountInput = {
+  month: number;
+  amountMajor: number;
+};
+
+export type CreateBudgetItemInput = {
+  budgetSectionId: number;
+  name: string;
+  notes?: string | null;
+  staffId?: string | null;
+  monthlyAmounts: ReadonlyArray<CreateBudgetItemMonthlyAmountInput>;
+};
+
+export type CreateBudgetItemState = {
+  success: boolean;
+  error: boolean;
+  message?: string;
+};
+
+export const createBudgetItemWithAmounts = async (
+  _state: CreateBudgetItemState,
+  data: CreateBudgetItemInput,
+): Promise<CreateBudgetItemState> => {
+  try {
+    await ensurePermission(["budget.write"]);
+
+    if (!Number.isFinite(data.budgetSectionId)) {
+      return { success: false, error: true, message: "Invalid budget section" };
+    }
+
+    const { schoolId } = await getCurrentSchoolContext();
+
+    if (schoolId === null) {
+      return {
+        success: false,
+        error: true,
+        message: "Select a school before editing a budget",
+      };
+    }
+
+    const section = await prisma.budgetSection.findUnique({
+      where: { id: data.budgetSectionId },
+      include: {
+        budgetYear: true,
+      },
+    });
+
+    if (!section || section.budgetYear.schoolId !== schoolId) {
+      return { success: false, error: true, message: "Budget section not found" };
+    }
+
+    const trimmedName = data.name.trim();
+    if (trimmedName.length === 0) {
+      return { success: false, error: true, message: "Item name is required" };
+    }
+
+    type LogicalSection = "overheads" | "staff" | "other";
+
+    const logicalSection: LogicalSection =
+      section.name === "Staff salaries - Current"
+        ? "staff"
+        : section.name === "Other Budgets"
+          ? "other"
+          : "overheads";
+
+    let kind: "OVERHEAD" | "STAFF" | "INCOME" | "OTHER" = "OVERHEAD";
+    let category: string | null = null;
+
+    if (logicalSection === "staff") {
+      kind = "STAFF";
+      category = "Staff Salary";
+
+      if (!data.staffId) {
+        return {
+          success: false,
+          error: true,
+          message: "Select a staff member for staff salary items",
+        };
+      }
+    } else if (logicalSection === "other") {
+      const normalizedUpper = trimmedName.toUpperCase();
+      const incomeKeywords: readonly string[] = [
+        "FEE",
+        "FEES",
+        "TUITION",
+        "INCOME",
+        "REVENUE",
+      ];
+
+      const isIncomeLike = incomeKeywords.some((keyword) =>
+        normalizedUpper.includes(keyword),
+      );
+
+      if (isIncomeLike) {
+        kind = "INCOME";
+        category = "Fee Income";
+      } else {
+        kind = "OTHER";
+        category = trimmedName;
+      }
+    } else {
+      category = trimmedName;
+    }
+
+    const amountEntries = data.monthlyAmounts
+      .filter((entry) => Number.isFinite(entry.month) && entry.month >= 1 && entry.month <= 12)
+      .map((entry) => {
+        const amountMajor = entry.amountMajor;
+        if (!Number.isFinite(amountMajor)) {
+          return { month: entry.month, amount: 0 };
+        }
+        const minor = Math.round(amountMajor * 100);
+        return { month: entry.month, amount: minor };
+      })
+      .filter((entry) => entry.amount > 0);
+
+    if (amountEntries.length === 0) {
+      return {
+        success: false,
+        error: true,
+        message: "At least one month amount must be greater than zero",
+      };
+    }
+
+    await prisma.budgetItem.create({
+      data: {
+        budgetSectionId: section.id,
+        name: trimmedName,
+        kind,
+        category,
+        notes: data.notes && data.notes.trim().length > 0 ? data.notes.trim() : null,
+        staffId: data.staffId ?? null,
+        amounts: {
+          create: amountEntries,
+        },
+      },
+    });
+
+    revalidatePath("/finance/budget");
+    revalidatePath(`/finance/budget/${section.budgetYearId}`);
+
+    return { success: true, error: false, message: "Budget item created" };
+  } catch (e) {
+    console.error(e);
+    return { success: false, error: true, message: "Failed to create budget item" };
+  }
+};

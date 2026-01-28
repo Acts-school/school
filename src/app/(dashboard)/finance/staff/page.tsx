@@ -21,6 +21,7 @@ export default async function StaffPage() {
   };
 
   type StaffFindManyArgs = {
+    where?: { active: boolean };
     orderBy: { createdAt: "asc" | "desc" };
     select: {
       id: true;
@@ -42,6 +43,7 @@ export default async function StaffPage() {
   const staffPrisma = prisma as unknown as StaffPrisma;
 
   const staff = await staffPrisma.staff.findMany({
+    where: { active: true },
     orderBy: { createdAt: "desc" },
     select: {
       id: true,

@@ -30,6 +30,7 @@ vi.mock("@prisma/client", () => {
   type TermValue = "TERM1" | "TERM2" | "TERM3" | null;
 
   type ClassFeeStructureRow = {
+    id: number;
     classId: number;
     feeCategoryId: number;
     term: TermValue;
@@ -78,7 +79,15 @@ vi.mock("@prisma/client", () => {
     create: { name: string; capacity: number; gradeId: number };
   };
 
+  type ClassCreateArgsMock = {
+    data: { name: string; capacity: number; gradeId: number };
+  };
+
   type ClassFindUniqueArgsMock = {
+    where: { name: string };
+  };
+
+  type ClassFindFirstArgsMock = {
     where: { name: string };
   };
 
@@ -106,6 +115,31 @@ vi.mock("@prisma/client", () => {
     };
   };
 
+  type ClassFeeStructureFindFirstArgsMock = {
+    where: {
+      classId: number;
+      feeCategoryId: number;
+      term: TermValue;
+      academicYear: number;
+    };
+  };
+
+  type ClassFeeStructureUpdateArgsMock = {
+    where: { id: number };
+    data: { amount: number; active: boolean };
+  };
+
+  type ClassFeeStructureCreateArgsMock = {
+    data: {
+      classId: number;
+      feeCategoryId: number;
+      term: TermValue;
+      academicYear: number;
+      amount: number;
+      active: boolean;
+    };
+  };
+
   const state = {
     feeCategories: [] as FeeCategoryRow[],
     schoolPaymentInfos: [] as SchoolPaymentInfoRow[],
@@ -117,13 +151,23 @@ vi.mock("@prisma/client", () => {
   let nextFeeCategoryId = 1;
   let nextGradeId = 1;
   let nextClassId = 1;
+  let nextClassFeeStructureId = 1;
+
+  const primaryClassNames: ReadonlyArray<string> = ["1A", "2A", "3A", "4A", "5A", "6A"];
+  for (const name of primaryClassNames) {
+    const row: ClassRow = { id: nextClassId, name, gradeId: 1 };
+    nextClassId += 1;
+    state.classes.push(row);
+  }
 
   class PrismaClientMock {
     feeCategory = {
       upsert: async (args: FeeCategoryUpsertArgsMock): Promise<void> => {
         const existing = state.feeCategories.find((c) => c.name === args.where.name);
         if (existing) {
-          existing.description = args.update.description ?? existing.description;
+          if (args.update.description !== undefined) {
+            existing.description = args.update.description;
+          }
           existing.frequency = args.update.frequency;
           existing.isRecurring = args.update.isRecurring;
           existing.active = args.update.active;
@@ -133,12 +177,14 @@ vi.mock("@prisma/client", () => {
         const row: FeeCategoryRow = {
           id: nextFeeCategoryId,
           name: args.create.name,
-          description: args.create.description,
           frequency: args.create.frequency,
           isRecurring: args.create.isRecurring,
           active: args.create.active,
           isEditable: args.create.isEditable,
         };
+        if (args.create.description !== undefined) {
+          row.description = args.create.description;
+        }
         nextFeeCategoryId += 1;
         state.feeCategories.push(row);
       },
@@ -185,7 +231,17 @@ vi.mock("@prisma/client", () => {
         nextClassId += 1;
         state.classes.push(row);
       },
+      create: async (args: ClassCreateArgsMock): Promise<ClassRow> => {
+        const row: ClassRow = { id: nextClassId, name: args.data.name, gradeId: args.data.gradeId };
+        nextClassId += 1;
+        state.classes.push(row);
+        return row;
+      },
       findUnique: async (args: ClassFindUniqueArgsMock): Promise<ClassRow | null> => {
+        const found = state.classes.find((cls) => cls.name === args.where.name);
+        return found ?? null;
+      },
+      findFirst: async (args: ClassFindFirstArgsMock): Promise<ClassRow | null> => {
         const found = state.classes.find((cls) => cls.name === args.where.name);
         return found ?? null;
       },
@@ -218,6 +274,7 @@ vi.mock("@prisma/client", () => {
         }
 
         const row: ClassFeeStructureRow = {
+          id: nextClassFeeStructureId,
           classId: args.create.classId,
           feeCategoryId: args.create.feeCategoryId,
           term: args.create.term,
@@ -225,11 +282,45 @@ vi.mock("@prisma/client", () => {
           amount: args.create.amount,
           active: args.create.active,
         };
+        nextClassFeeStructureId += 1;
         state.classFeeStructures.push(row);
+      },
+      findFirst: async (args: ClassFeeStructureFindFirstArgsMock): Promise<ClassFeeStructureRow | null> => {
+        const found = state.classFeeStructures.find(
+          (row) =>
+            row.classId === args.where.classId &&
+            row.feeCategoryId === args.where.feeCategoryId &&
+            row.term === args.where.term &&
+            row.academicYear === args.where.academicYear,
+        );
+        return found ?? null;
+      },
+      update: async (args: ClassFeeStructureUpdateArgsMock): Promise<void> => {
+        const index = state.classFeeStructures.findIndex((row) => row.id === args.where.id);
+        if (index >= 0) {
+          state.classFeeStructures[index] = {
+            ...state.classFeeStructures[index],
+            amount: args.data.amount,
+            active: args.data.active,
+          };
+        }
+      },
+      create: async (args: ClassFeeStructureCreateArgsMock): Promise<ClassFeeStructureRow> => {
+        const row: ClassFeeStructureRow = {
+          id: nextClassFeeStructureId,
+          classId: args.data.classId,
+          feeCategoryId: args.data.feeCategoryId,
+          term: args.data.term,
+          academicYear: args.data.academicYear,
+          amount: args.data.amount,
+          active: args.data.active,
+        };
+        nextClassFeeStructureId += 1;
+        state.classFeeStructures.push(row);
+        return row;
       },
     };
   }
-
   return {
     PrismaClient: PrismaClientMock,
     __prismaMockState: state,
@@ -238,7 +329,43 @@ vi.mock("@prisma/client", () => {
 
 // Import after vi.mock so that seedFees uses the mocked PrismaClient
 import { seedFees } from "../../prisma/seed-fees";
-import { __prismaMockState } from "@prisma/client";
+import * as PrismaClientModule from "@prisma/client";
+
+const { __prismaMockState } = PrismaClientModule as unknown as {
+  __prismaMockState: {
+    feeCategories: Array<{
+      id: number;
+      name: string;
+      description?: string;
+      frequency: "TERMLY" | "YEARLY" | "ONE_TIME";
+      isRecurring: boolean;
+      isEditable: boolean;
+      active: boolean;
+    }>;
+    schoolPaymentInfos: Array<{
+      name: string;
+      data: unknown;
+    }>;
+    grades: Array<{
+      id: number;
+      level: number;
+    }>;
+    classes: Array<{
+      id: number;
+      name: string;
+      gradeId: number;
+    }>;
+    classFeeStructures: Array<{
+      id: number;
+      classId: number;
+      feeCategoryId: number;
+      term: "TERM1" | "TERM2" | "TERM3" | null;
+      academicYear: number;
+      amount: number;
+      active: boolean;
+    }>;
+  };
+};
 
 const PRIMARY_CLASSES: ReadonlyArray<string> = ["1A", "2A", "3A", "4A", "5A", "6A"];
 
@@ -260,7 +387,10 @@ describe("seedFees integration with C2B mapping context", () => {
     const academicYear = 2025;
 
     const term1Structures = __prismaMockState.classFeeStructures.filter(
-      (row) => row.classId === classId && row.term === "TERM1" && row.academicYear === academicYear,
+      (row) =>
+        row.classId === classId &&
+        row.academicYear === academicYear &&
+        (row.term === "TERM1" || row.term === null),
     );
 
     const totalMinor = term1Structures.reduce((sum, row) => sum + row.amount, 0);

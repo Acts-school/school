@@ -1,8 +1,22 @@
 import { z } from "zod";
 
+const databaseUrlSchema = z
+  .string()
+  .min(1, "DATABASE_URL is required")
+  .refine((value) => {
+    try {
+      // Using the WHATWG URL API so that non-HTTP(S) schemes like "postgresql://" are accepted.
+      // eslint-disable-next-line no-new
+      new URL(value);
+      return true;
+    } catch {
+      return false;
+    }
+  }, "Invalid DATABASE_URL");
+
 const serverSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
-  DATABASE_URL: z.string().url(),
+  DATABASE_URL: databaseUrlSchema,
   NEXTAUTH_SECRET: z.string().min(16),
   SENTRY_DSN: z.string().url().optional(),
 });

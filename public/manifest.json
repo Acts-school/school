@@ -1,6 +1,6 @@
 {
-  "name": "EmmanuelActs - School Management System",
-  "short_name": "EmmanuelActs",
+  "name": "EmmanuelAct - School Management System",
+  "short_name": "EmmanuelAct",
   "start_url": "/",
   "display": "standalone",
   "theme_color": "#ffffff",

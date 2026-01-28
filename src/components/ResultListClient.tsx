@@ -122,7 +122,7 @@ export default function ResultListClient() {
           <h1 className="hidden md:block text-lg font-semibold">All Results</h1>
           {role === "student" && currentUserId && (
             <a
-              href={`/api/cbc-reports/student/${currentUserId}/pdf`}
+              href={`/cbc-reports/student/${currentUserId}/print`}
               target="_blank"
               rel="noreferrer"
               className="text-[11px] text-blue-600 hover:underline mt-1"

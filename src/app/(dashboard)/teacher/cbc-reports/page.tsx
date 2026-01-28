@@ -84,7 +84,7 @@ const TeacherCbcReportsPage = async () => {
                         {student.name} {student.surname}
                       </span>
                       <a
-                        href={`/api/cbc-reports/student/${student.id}/pdf`}
+                        href={`/cbc-reports/student/${student.id}/print`}
                         target="_blank"
                         rel="noreferrer"
                         className="text-[11px] text-blue-600 hover:underline whitespace-nowrap"

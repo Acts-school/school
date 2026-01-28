@@ -263,6 +263,15 @@ export type PrefillPayrollFromBudgetInput = {
   periodId: number;
 };
 
+export type CreateStaffPayrollRowInput = {
+  periodId: number;
+  staffId: string;
+};
+
+export type DeleteStaffPayrollRowInput = {
+  id: number;
+};
+
 export const createPayrollPeriod = async (
   _state: { success: boolean; error: boolean },
   data: CreatePayrollPeriodInput,
@@ -580,5 +589,230 @@ export const prefillPayrollFromBudget = async (
   } catch (e) {
     console.error(e);
     return { success: false, error: true } as const;
+  }
+};
+
+export const createStaffPayrollRow = async (
+  _state: { success: boolean; error: boolean; message?: string },
+  data: CreateStaffPayrollRowInput,
+): Promise<{ success: boolean; error: boolean; message?: string }> => {
+  try {
+    await ensurePermission(["payroll.write"]);
+
+    type PayrollPeriodForCreateRow = {
+      id: number;
+      status: PayrollPeriodStatus;
+    };
+
+    type PayrollPeriodFindUniqueForCreateArgs = {
+      where: { id: number };
+      select: { id: true; status: true };
+    };
+
+    type StaffForCreateRow = {
+      id: string;
+      role: StaffRole;
+      basicSalary: number;
+      active: boolean;
+    };
+
+    type StaffFindManyForCreateArgs = {
+      where: { id: string; active: boolean };
+      select: {
+        id: true;
+        role: true;
+        basicSalary: true;
+        active: true;
+      };
+    };
+
+    type StaffPayrollDuplicateRow = {
+      id: number;
+    };
+
+    type StaffPayrollFindFirstForDuplicateArgs = {
+      where: { periodId: number; staffId: string };
+      select: { id: true };
+    };
+
+    const payrollCreateClient = prisma as unknown as {
+      payrollPeriod: {
+        findUnique: (
+          args: PayrollPeriodFindUniqueForCreateArgs,
+        ) => Promise<PayrollPeriodForCreateRow | null>;
+      };
+      staff: {
+        findMany: (
+          args: StaffFindManyForCreateArgs,
+        ) => Promise<StaffForCreateRow[]>;
+      };
+      staffPayroll: {
+        findFirst: (
+          args: StaffPayrollFindFirstForDuplicateArgs,
+        ) => Promise<StaffPayrollDuplicateRow | null>;
+        create: (args: StaffPayrollCreateArgs) => Promise<unknown>;
+      };
+    };
+
+    const period = await payrollCreateClient.payrollPeriod.findUnique({
+      where: { id: data.periodId },
+      select: { id: true, status: true },
+    });
+
+    if (!period || period.status !== "OPEN") {
+      return {
+        success: false,
+        error: true,
+        message: "Cannot add row: payroll period is not open.",
+      };
+    }
+
+    const staffList = await payrollCreateClient.staff.findMany({
+      where: { id: data.staffId, active: true },
+      select: {
+        id: true,
+        role: true,
+        basicSalary: true,
+        active: true,
+      },
+    });
+
+    if (staffList.length === 0) {
+      return {
+        success: false,
+        error: true,
+        message: "Cannot add row: selected staff is not active.",
+      };
+    }
+
+    const staff = staffList[0];
+    if (!staff) {
+      return { success: false, error: true };
+    }
+
+    const existing = await payrollCreateClient.staffPayroll.findFirst({
+      where: { periodId: data.periodId, staffId: data.staffId },
+      select: { id: true },
+    });
+
+    if (existing) {
+      return {
+        success: false,
+        error: true,
+        message: "Cannot add row: staff already has a payroll row in this period.",
+      };
+    }
+
+    const basicSalary = staff.basicSalary;
+    const netPay = basicSalary;
+
+    await payrollCreateClient.staffPayroll.create({
+      data: {
+        periodId: data.periodId,
+        staffId: staff.id,
+        staffRole: staff.role,
+        basicSalary,
+        allowances: 0,
+        deductions: 0,
+        netPay,
+        status: "DRAFT",
+      },
+    });
+
+    revalidatePath("/finance/payroll");
+    return { success: true, error: false };
+  } catch (e) {
+    console.error(e);
+    return {
+      success: false,
+      error: true,
+      message: "Unexpected error while adding staff payroll row.",
+    };
+  }
+};
+
+export const deleteStaffPayrollRow = async (
+  _state: { success: boolean; error: boolean; message?: string },
+  data: DeleteStaffPayrollRowInput,
+): Promise<{ success: boolean; error: boolean; message?: string }> => {
+  try {
+    await ensurePermission(["payroll.write"]);
+
+    type StaffPayrollWithPeriodRow = {
+      id: number;
+      period: {
+        id: number;
+        status: PayrollPeriodStatus;
+      };
+    };
+
+    type StaffPayrollFindUniqueWithPeriodArgs = {
+      where: { id: number };
+      select: {
+        id: true;
+        period: {
+          select: {
+            id: true;
+            status: true;
+          };
+        };
+      };
+    };
+
+    type StaffPayrollDeleteArgs = {
+      where: { id: number };
+    };
+
+    const payrollDeleteClient = prisma as unknown as {
+      staffPayroll: {
+        findUnique: (
+          args: StaffPayrollFindUniqueWithPeriodArgs,
+        ) => Promise<StaffPayrollWithPeriodRow | null>;
+        delete: (args: StaffPayrollDeleteArgs) => Promise<unknown>;
+      };
+    };
+
+    const rowWithPeriod = await payrollDeleteClient.staffPayroll.findUnique({
+      where: { id: data.id },
+      select: {
+        id: true,
+        period: {
+          select: {
+            id: true,
+            status: true,
+          },
+        },
+      },
+    });
+
+    if (!rowWithPeriod) {
+      return {
+        success: false,
+        error: true,
+        message: "Cannot delete: payroll row not found.",
+      };
+    }
+
+    if (rowWithPeriod.period.status !== "OPEN") {
+      return {
+        success: false,
+        error: true,
+        message: "Cannot delete: payroll period is not open.",
+      };
+    }
+
+    await payrollDeleteClient.staffPayroll.delete({
+      where: { id: data.id },
+    });
+
+    revalidatePath("/finance/payroll");
+    return { success: true, error: false };
+  } catch (e) {
+    console.error(e);
+    return {
+      success: false,
+      error: true,
+      message: "Unexpected error while deleting payroll row.",
+    };
   }
 };
