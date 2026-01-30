@@ -108,6 +108,10 @@ type AdmissionNumberParts = {
 };
 
 const formatAdmissionLevelCode = (gradeLevel: number): string => {
+  if (gradeLevel === 0) {
+    return "PG";
+  }
+
   if (gradeLevel === 1) {
     return "PP1";
   }

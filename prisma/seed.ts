@@ -58,6 +58,7 @@ async function main() {
   // GRADE
   try {
     const canonicalGrades: Array<{ level: number; stage: EducationStage }> = [
+      { level: 0, stage: EducationStage.PRE_PRIMARY },
       { level: 1, stage: EducationStage.PRE_PRIMARY },
       { level: 2, stage: EducationStage.PRE_PRIMARY },
       { level: 3, stage: EducationStage.LOWER_PRIMARY },

@@ -2,12 +2,13 @@ import prisma from "@/lib/prisma";
 import { ensurePermission, getCurrentSchoolContext } from "@/lib/authz";
 import { getSchoolSettingsDefaults } from "@/lib/schoolSettings";
 import Breadcrumbs from "@/components/Breadcrumbs";
-import ManualStudentFeeAdjustmentForm from "@/components/ManualStudentFeeAdjustmentForm";
-import ManualFeeReminderForm from "@/components/ManualFeeReminderForm";
+import { Fragment } from "react";
 
 const formatKES = (minor: number): string => `KES ${((minor ?? 0) / 100).toFixed(2)}`;
 
 type TermLiteral = "TERM1" | "TERM2" | "TERM3";
+
+type FeeFrequencyLiteral = "TERMLY" | "YEARLY" | "ONE_TIME";
 
 type CollectionsSearchParams = {
   year: string | undefined;
@@ -33,12 +34,33 @@ type Totals = {
   outstanding: number;
 };
 
+type CategoryTotals = {
+  due: number;
+  outstanding: number;
+};
+
+type PivotTotalsByTerm = Partial<Record<TermLiteral, Map<number, CategoryTotals>>>;
+
+type FeeCategoryRow = {
+  id: number;
+  name: string;
+  frequency: FeeFrequencyLiteral;
+};
+
+type GroupValue = {
+  info: ClassKeyInfo;
+  totals: Totals;
+  byTerm: PivotTotalsByTerm;
+};
+
 type StudentFeeRow = {
   id: string;
   amountDue: number;
   amountPaid: number;
   term: TermLiteral | null;
   academicYear: number | null;
+  feeCategoryId: number | null;
+  feeCategory: { id: number; name: string } | null;
   student: {
     gradeId: number | null;
     classId: number | null;
@@ -68,6 +90,13 @@ type StudentFeeFindManyArgs = {
     amountPaid: true;
     term: true;
     academicYear: true;
+    feeCategoryId: true;
+    feeCategory: {
+      select: {
+        id: true;
+        name: true;
+      };
+    };
     student: {
       select: {
         gradeId: true;
@@ -83,6 +112,13 @@ type FinancePrisma = {
   studentFee: {
     findMany: (args: StudentFeeFindManyArgs) => Promise<StudentFeeRow[]>;
   };
+  feeCategory: {
+    findMany: (args: {
+      where?: { active?: boolean; frequency?: FeeFrequencyLiteral };
+      select: { id: true; name: true; frequency: true };
+      orderBy?: { name: "asc" | "desc" };
+    }) => Promise<FeeCategoryRow[]>;
+  };
 };
 
 const financePrisma = prisma as unknown as FinancePrisma;
@@ -95,17 +131,54 @@ const toSingleValue = (
   return value;
 };
 
+const termLabel = (term: TermLiteral): string => {
+  if (term === "TERM1") return "Term 1";
+  if (term === "TERM2") return "Term 2";
+  return "Term 3";
+};
+
+const getCategoryTotals = (
+  pivot: PivotTotalsByTerm,
+  term: TermLiteral,
+  categoryId: number,
+): CategoryTotals => {
+  const termMap = pivot[term];
+  if (!termMap) {
+    return { due: 0, outstanding: 0 };
+  }
+  const totals = termMap.get(categoryId);
+  if (!totals) {
+    return { due: 0, outstanding: 0 };
+  }
+  return totals;
+};
+
 export default async function CollectionsPage({ searchParams }: CollectionsPageProps) {
   await ensurePermission("fees.read");
 
   const resolvedSearchParams = searchParams ? await searchParams : {};
 
-  const params: CollectionsSearchParams = {
-    year: toSingleValue(resolvedSearchParams.year),
-    term: toSingleValue(resolvedSearchParams.term) as TermLiteral | "" | undefined,
-    gradeId: toSingleValue(resolvedSearchParams.gradeId),
-  };
+  const rawYearParam = toSingleValue(resolvedSearchParams.year);
+  const rawTermParam = toSingleValue(resolvedSearchParams.term);
+  const rawGradeIdParam = toSingleValue(resolvedSearchParams.gradeId);
+
   const { academicYear: defaultYear, term: defaultTerm } = await getSchoolSettingsDefaults();
+
+  const selectedTerm: "" | TermLiteral = (() => {
+    if (rawTermParam === "TERM1" || rawTermParam === "TERM2" || rawTermParam === "TERM3") {
+      return rawTermParam;
+    }
+    if (rawTermParam === "") {
+      return "";
+    }
+    return defaultTerm;
+  })();
+
+  const params: CollectionsSearchParams = {
+    year: rawYearParam,
+    term: selectedTerm,
+    gradeId: rawGradeIdParam,
+  };
 
   const { schoolId } = await getCurrentSchoolContext();
 
@@ -116,13 +189,8 @@ export default async function CollectionsPage({ searchParams }: CollectionsPageP
     return Number.isNaN(parsed) ? defaultYear : parsed;
   })();
 
-  const termFilter: TermLiteral | undefined = (() => {
-    const raw = params.term;
-    if (raw === "TERM1" || raw === "TERM2" || raw === "TERM3") {
-      return raw;
-    }
-    return defaultTerm;
-  })();
+  const termFilter: TermLiteral | undefined =
+    selectedTerm === "" ? undefined : selectedTerm;
 
   const gradeIdNumber = params.gradeId ? Number.parseInt(params.gradeId, 10) : undefined;
 
@@ -148,10 +216,15 @@ export default async function CollectionsPage({ searchParams }: CollectionsPageP
     };
   }
 
-  const [grades, rows] = await Promise.all([
+  const [grades, feeCategories, rows] = await Promise.all([
     prisma.grade.findMany({
       select: { id: true, level: true },
       orderBy: { level: "asc" },
+    }),
+    financePrisma.feeCategory.findMany({
+      where: { active: true, frequency: "TERMLY" },
+      select: { id: true, name: true, frequency: true },
+      orderBy: { name: "asc" },
     }),
     financePrisma.studentFee.findMany({
       where,
@@ -161,6 +234,13 @@ export default async function CollectionsPage({ searchParams }: CollectionsPageP
         amountPaid: true,
         term: true,
         academicYear: true,
+        feeCategoryId: true,
+        feeCategory: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
         student: {
           select: {
             gradeId: true,
@@ -173,13 +253,9 @@ export default async function CollectionsPage({ searchParams }: CollectionsPageP
     }),
   ]);
 
-  const groups = new Map<
-    string,
-    {
-      info: ClassKeyInfo;
-      totals: Totals;
-    }
-  >();
+  const groups = new Map<string, GroupValue>();
+
+  const displayedCategoryIds = new Set<number>(feeCategories.map((category) => category.id));
 
   const grandTotals: Totals = { due: 0, paid: 0, outstanding: 0 };
 
@@ -188,6 +264,7 @@ export default async function CollectionsPage({ searchParams }: CollectionsPageP
     const classId = row.student.class?.id ?? row.student.classId ?? null;
     const key = `${gradeId ?? "none"}|${classId ?? "none"}`;
 
+    const outstanding = Math.max(row.amountDue - row.amountPaid, 0);
     let group = groups.get(key);
     if (!group) {
       const info: ClassKeyInfo = {
@@ -199,11 +276,11 @@ export default async function CollectionsPage({ searchParams }: CollectionsPageP
       group = {
         info,
         totals: { due: 0, paid: 0, outstanding: 0 },
+        byTerm: {},
       };
       groups.set(key, group);
     }
 
-    const outstanding = Math.max(row.amountDue - row.amountPaid, 0);
     group.totals.due += row.amountDue;
     group.totals.paid += row.amountPaid;
     group.totals.outstanding += outstanding;
@@ -211,6 +288,37 @@ export default async function CollectionsPage({ searchParams }: CollectionsPageP
     grandTotals.due += row.amountDue;
     grandTotals.paid += row.amountPaid;
     grandTotals.outstanding += outstanding;
+
+    const categoryId = row.feeCategoryId;
+    if (categoryId === null || !displayedCategoryIds.has(categoryId)) {
+      // Only include TERMLY / displayed categories in the pivoted table.
+      // Other categories still contribute to grand totals above.
+      // eslint-disable-next-line no-continue
+      continue;
+    }
+
+    const rowTerm = row.term;
+    if (rowTerm !== "TERM1" && rowTerm !== "TERM2" && rowTerm !== "TERM3") {
+      // Ignore rows without a concrete term when building the per-term pivot.
+      // eslint-disable-next-line no-continue
+      continue;
+    }
+
+    if (!group.byTerm[rowTerm]) {
+      group.byTerm[rowTerm] = new Map<number, CategoryTotals>();
+    }
+
+    const termMap = group.byTerm[rowTerm] as Map<number, CategoryTotals>;
+    const existingCategoryTotals = termMap.get(categoryId);
+    if (existingCategoryTotals) {
+      existingCategoryTotals.due += row.amountDue;
+      existingCategoryTotals.outstanding += outstanding;
+    } else {
+      termMap.set(categoryId, {
+        due: row.amountDue,
+        outstanding,
+      });
+    }
   }
 
   const summaryRows = Array.from(groups.values()).sort((a, b) => {
@@ -221,6 +329,42 @@ export default async function CollectionsPage({ searchParams }: CollectionsPageP
     const bClass = b.info.className ?? "";
     return aClass.localeCompare(bClass);
   });
+
+  const termOrder: TermLiteral[] = ["TERM1", "TERM2", "TERM3"];
+  const activeTerms: TermLiteral[] = termFilter ? [termFilter] : termOrder;
+
+  const totalsByTermCategory: PivotTotalsByTerm = {};
+
+  for (const row of summaryRows) {
+    for (const term of termOrder) {
+      const termMap = row.byTerm[term];
+      if (!termMap) {
+        // eslint-disable-next-line no-continue
+        continue;
+      }
+
+      if (!totalsByTermCategory[term]) {
+        totalsByTermCategory[term] = new Map<number, CategoryTotals>();
+      }
+
+      const globalTermMap = totalsByTermCategory[term] as Map<number, CategoryTotals>;
+
+      for (const [categoryId, catTotals] of termMap.entries()) {
+        const existing = globalTermMap.get(categoryId);
+        if (existing) {
+          existing.due += catTotals.due;
+          existing.outstanding += catTotals.outstanding;
+        } else {
+          globalTermMap.set(categoryId, {
+            due: catTotals.due,
+            outstanding: catTotals.outstanding,
+          });
+        }
+      }
+    }
+  }
+
+  const emptyColSpan = 2 + activeTerms.length * feeCategories.length * 2;
 
   const buildQuery = (patch: Partial<CollectionsSearchParams>): string => {
     const q = new URLSearchParams();
@@ -264,7 +408,7 @@ export default async function CollectionsPage({ searchParams }: CollectionsPageP
           <label className="text-xs text-gray-500">Term</label>
           <select
             name="term"
-            defaultValue={termFilter ?? ""}
+            defaultValue={selectedTerm}
             className="p-2 rounded-md ring-1 ring-gray-300 w-28"
           >
             <option value="">All terms</option>
@@ -308,37 +452,103 @@ export default async function CollectionsPage({ searchParams }: CollectionsPageP
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <ManualStudentFeeAdjustmentForm />
-        <ManualFeeReminderForm />
-      </div>
-
       <div className="overflow-x-auto">
         <table className="min-w-full text-sm">
           <thead>
             <tr className="text-left border-b">
-              <th className="py-2 pr-4">Grade</th>
-              <th className="py-2 pr-4">Class</th>
-              <th className="py-2 pr-4">Due</th>
-              <th className="py-2 pr-4">Paid</th>
-              <th className="py-2 pr-4">Outstanding</th>
+              <th className="py-2 pr-4" rowSpan={3}>
+                Grade
+              </th>
+              <th className="py-2 pr-4" rowSpan={3}>
+                Class
+              </th>
+              {activeTerms.length === 1 && termFilter
+                ? (
+                  <th
+                    className="py-2 pr-4 text-center"
+                    colSpan={feeCategories.length * 2}
+                  >
+                    {termLabel(termFilter)}
+                  </th>
+                )
+                : termOrder.map((term) => (
+                    <th
+                      key={term}
+                      className="py-2 pr-4 text-center"
+                      colSpan={feeCategories.length * 2}
+                    >
+                      {termLabel(term)}
+                    </th>
+                  ))}
+            </tr>
+            <tr className="text-left border-b">
+              {(termFilter ? [termFilter] : termOrder).map((term) =>
+                feeCategories.map((category) => (
+                  <th
+                    key={`${term}-${category.id}`}
+                    className="py-2 pr-4 text-center"
+                    colSpan={2}
+                  >
+                    {category.name}
+                  </th>
+                )),
+              )}
+            </tr>
+            <tr className="text-left border-b">
+              {(termFilter ? [termFilter] : termOrder).map((term) =>
+                feeCategories.map((category) => (
+                  <Fragment key={`${term}-${category.id}-labels`}>
+                    <th className="py-2 pr-4 text-right">Total due</th>
+                    <th className="py-2 pr-4 text-right">Outstanding</th>
+                  </Fragment>
+                )),
+              )}
             </tr>
           </thead>
           <tbody>
-            {summaryRows.map(({ info, totals }) => (
+            {summaryRows.map(({ info, byTerm }) => (
               <tr key={`${info.gradeId ?? "none"}|${info.classId ?? "none"}`} className="border-b last:border-b-0">
                 <td className="py-2 pr-4">{info.gradeLevel ?? "-"}</td>
                 <td className="py-2 pr-4">{info.className ?? "-"}</td>
-                <td className="py-2 pr-4">{formatKES(totals.due)}</td>
-                <td className="py-2 pr-4">{formatKES(totals.paid)}</td>
-                <td className="py-2 pr-4">{formatKES(totals.outstanding)}</td>
+                {(termFilter ? [termFilter] : termOrder).map((term) =>
+                  feeCategories.map((category) => {
+                    const classTotals = getCategoryTotals(byTerm, term, category.id);
+
+                    return (
+                      <Fragment
+                        key={`${info.gradeId ?? "none"}|${info.classId ?? "none"}|${term}-${category.id}`}
+                      >
+                        <td className="py-2 pr-4 text-right">{formatKES(classTotals.due)}</td>
+                        <td className="py-2 pr-4 text-right">{formatKES(classTotals.outstanding)}</td>
+                      </Fragment>
+                    );
+                  }),
+                )}
               </tr>
             ))}
             {summaryRows.length === 0 && (
               <tr>
-                <td className="py-4 pr-4 text-sm text-gray-500" colSpan={5}>
+                <td className="py-4 pr-4 text-sm text-gray-500" colSpan={emptyColSpan}>
                   No student fees found for the selected filters.
                 </td>
+              </tr>
+            )}
+            {summaryRows.length > 0 && (
+              <tr className="font-semibold border-t">
+                <td className="py-2 pr-4">Total</td>
+                <td className="py-2 pr-4" />
+                {(termFilter ? [termFilter] : termOrder).map((term) =>
+                  feeCategories.map((category) => {
+                    const totalCell = getCategoryTotals(totalsByTermCategory, term, category.id);
+
+                    return (
+                      <Fragment key={`total-${term}-${category.id}`}>
+                        <td className="py-2 pr-4 text-right">{formatKES(totalCell.due)}</td>
+                        <td className="py-2 pr-4 text-right">{formatKES(totalCell.outstanding)}</td>
+                      </Fragment>
+                    );
+                  }),
+                )}
               </tr>
             )}
           </tbody>

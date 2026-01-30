@@ -73,6 +73,10 @@ const ClassForm = ({ type, data, setOpen, relatedData }: ClassFormProps) => {
       : { teachers: [], grades: [] };
 
   const getGradeLabel = (level: number): string => {
+    if (level === 0) {
+      return "Playgroup";
+    }
+
     if (level === 1) {
       return "PP1";
     }

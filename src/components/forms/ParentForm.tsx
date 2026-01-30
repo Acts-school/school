@@ -84,6 +84,10 @@ const ParentForm = ({ type, data, setOpen, relatedData }: ParentFormProps) => {
   const classes: ParentFormRelatedData["classes"] = safeRelated.classes ?? [];
 
   const getGradeLabel = (level: number): string => {
+    if (level === 0) {
+      return "Playgroup";
+    }
+
     if (level === 1) {
       return "PP1";
     }
