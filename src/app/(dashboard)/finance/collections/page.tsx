@@ -387,12 +387,20 @@ export default async function CollectionsPage({ searchParams }: CollectionsPageP
 
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Collections Summary</h1>
-        <a
-          href={`/finance/collections/export?${buildQuery({})}`}
-          className="px-3 py-2 text-sm rounded-md bg-blue-500 text-white hover:bg-blue-600"
-        >
-          Export CSV
-        </a>
+        <div className="flex gap-2">
+          <a
+            href={`/finance/collections/export?${buildQuery({})}`}
+            className="px-3 py-2 text-sm rounded-md bg-blue-500 text-white hover:bg-blue-600"
+          >
+            Export CSV
+          </a>
+          <a
+            href={`/finance/collections/export?${buildQuery({})}&format=xlsx`}
+            className="px-3 py-2 text-sm rounded-md bg-blue-500 text-white hover:bg-blue-600"
+          >
+            Export Excel
+          </a>
+        </div>
       </div>
 
       <form method="get" className="flex flex-wrap gap-3 items-end">

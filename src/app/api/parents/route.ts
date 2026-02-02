@@ -29,10 +29,42 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const where: Prisma.ParentWhereInput = {};
 
     if (search) {
-      where.name = {
-        contains: search,
-        mode: "insensitive",
+      const searchCondition: Prisma.ParentWhereInput = {
+        OR: [
+          {
+            name: {
+              contains: search,
+              mode: "insensitive",
+            },
+          },
+          {
+            surname: {
+              contains: search,
+              mode: "insensitive",
+            },
+          },
+          {
+            phone: {
+              contains: search,
+              mode: "insensitive",
+            },
+          },
+          {
+            username: {
+              contains: search,
+              mode: "insensitive",
+            },
+          },
+          {
+            email: {
+              contains: search,
+              mode: "insensitive",
+            },
+          },
+        ],
       };
+
+      Object.assign(where, searchCondition);
     }
 
     const { schoolId } = await getCurrentSchoolContext();
