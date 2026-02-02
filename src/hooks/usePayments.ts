@@ -185,7 +185,7 @@ export const useCreatePayment = () => {
 
       const paymentId = data.id;
       if (typeof window !== "undefined" && Number.isFinite(paymentId) && paymentId > 0) {
-        const url = `/api/receipts/${paymentId}/pdf`;
+        const url = `/finance/receipts/${paymentId}/print`;
         window.open(url, "_blank", "noopener,noreferrer");
       }
     },

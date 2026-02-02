@@ -2,7 +2,12 @@
 
 import { useActionState } from "react";
 import type { StaffRole } from "@/lib/payroll.actions";
-import { updateStaffRole, type UpdateStaffRoleInput } from "@/lib/staff.actions";
+import {
+  updateStaffRole,
+  deleteStaff,
+  type UpdateStaffRoleInput,
+  type DeleteStaffInput,
+} from "@/lib/staff.actions";
 
 export type StaffRowForRoleTable = {
   id: string;
@@ -28,6 +33,17 @@ const INITIAL_STATE: UpdateStaffRoleState = {
   error: false,
 };
 
+type DeleteStaffState = {
+  success: boolean;
+  error: boolean;
+  message?: string;
+};
+
+const INITIAL_DELETE_STATE: DeleteStaffState = {
+  success: false,
+  error: false,
+};
+
 export default function StaffRoleTable({ staff }: StaffRoleTableProps) {
   const updateAction = async (
     _prevState: UpdateStaffRoleState,
@@ -39,9 +55,29 @@ export default function StaffRoleTable({ staff }: StaffRoleTableProps) {
 
   const [state, formAction] = useActionState(updateAction, INITIAL_STATE);
 
+  const deleteAction = async (
+    _prevState: DeleteStaffState,
+    payload: DeleteStaffInput,
+  ): Promise<DeleteStaffState> => {
+    const result = await deleteStaff({ success: false, error: false }, payload);
+    return result;
+  };
+
+  const [deleteState, deleteFormAction] = useActionState(deleteAction, INITIAL_DELETE_STATE);
+
   const handleRoleChange = (id: string, role: StaffRole) => {
     const payload: UpdateStaffRoleInput = { id, role };
     formAction(payload);
+  };
+
+  const handleDelete = (id: string) => {
+    const confirmed = window.confirm("Delete this staff member?");
+    if (!confirmed) {
+      return;
+    }
+
+    const payload: DeleteStaffInput = { id };
+    deleteFormAction(payload);
   };
 
   return (
@@ -52,7 +88,7 @@ export default function StaffRoleTable({ staff }: StaffRoleTableProps) {
             <th className="py-2 pr-4">Name</th>
             <th className="py-2 pr-4">Role</th>
             <th className="py-2 pr-4">Basic Salary</th>
-            <th className="py-2 pr-4">Email</th>
+            <th className="py-2 pr-4">Account number</th>
             <th className="py-2 pr-4">Phone</th>
           </tr>
         </thead>
@@ -76,7 +112,16 @@ export default function StaffRoleTable({ staff }: StaffRoleTableProps) {
               </td>
               <td className="py-2 pr-4">{`KES ${((s.basicSalary ?? 0) / 100).toFixed(2)}`}</td>
               <td className="py-2 pr-4">{s.email ?? ""}</td>
-              <td className="py-2 pr-4">{s.phone ?? ""}</td>
+              <td className="py-2 pr-4">
+                {s.phone ?? ""}
+                <button
+                  type="button"
+                  onClick={() => handleDelete(s.id)}
+                  className="ml-2 text-xs text-red-600 underline"
+                >
+                  Delete
+                </button>
+              </td>
             </tr>
           ))}
           {staff.length === 0 && (
@@ -93,6 +138,11 @@ export default function StaffRoleTable({ staff }: StaffRoleTableProps) {
       )}
       {state.success && !state.error && (
         <div className="mt-2 text-xs text-green-600">Staff role updated.</div>
+      )}
+      {deleteState.error && (
+        <div className="mt-2 text-xs text-red-600">
+          {deleteState.message ?? "Failed to delete staff member."}
+        </div>
       )}
     </div>
   );

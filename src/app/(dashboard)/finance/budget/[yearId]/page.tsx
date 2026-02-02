@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma";
 import { ensurePermission } from "@/lib/authz";
 import Breadcrumbs from "@/components/Breadcrumbs";
+import BudgetSectionAddItemForm from "@/components/forms/BudgetSectionAddItemForm";
 
 const formatKES = (minor: number): string => `KES ${((minor ?? 0) / 100).toFixed(2)}`;
 
@@ -70,6 +71,21 @@ export default async function BudgetDetailPage({ params }: BudgetDetailPageProps
     throw new Error("Budget not found");
   }
 
+  const hasStaffSection = budget.sections.some(
+    (section) => section.name === "Staff salaries - Current",
+  );
+
+  const staffOptionsForSections = hasStaffSection
+    ? await prisma.staff.findMany({
+        where: { active: true },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+        },
+      })
+    : [];
+
   let totalIncome = 0;
   let totalExpenses = 0;
   let staffExpenses = 0;
@@ -132,12 +148,19 @@ export default async function BudgetDetailPage({ params }: BudgetDetailPageProps
             return sectionSum + itemTotal;
           }, 0);
 
+          const isStaffSection = section.name === "Staff salaries - Current";
+
           return (
             <div key={section.id} className="border rounded-md bg-white">
               <div className="px-4 py-2 border-b flex items-center justify-between">
                 <div className="font-semibold text-sm">{section.name}</div>
                 <div className="text-xs text-gray-600">Total: {formatKES(sectionTotal)}</div>
               </div>
+              <BudgetSectionAddItemForm
+                budgetSectionId={section.id}
+                sectionName={section.name}
+                staffOptions={isStaffSection ? staffOptionsForSections : []}
+              />
               <div className="overflow-x-auto">
                 <table className="min-w-full text-xs">
                   <thead>

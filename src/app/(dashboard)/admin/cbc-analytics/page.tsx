@@ -382,7 +382,7 @@ const CbcAnalyticsPage = async () => {
                           <div>{item.studentName}</div>
                           <div>
                             <a
-                              href={`/api/cbc-reports/student/${item.studentId}/pdf`}
+                              href={`/cbc-reports/student/${item.studentId}/print`}
                               target="_blank"
                               rel="noreferrer"
                               className="text-[11px] text-blue-600 hover:underline"

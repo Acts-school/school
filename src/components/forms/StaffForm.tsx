@@ -84,9 +84,9 @@ export default function StaffForm() {
         {errors.basicSalaryMinor && <span className="text-xs text-red-500">Required</span>}
       </div>
       <div className="flex flex-col w-full md:w-1/4">
-        <label className="text-xs text-gray-500">Email (optional)</label>
+        <label className="text-xs text-gray-500">Account number (optional)</label>
         <input
-          type="email"
+          type="text"
           className="ring-[1.5px] ring-gray-300 p-2 rounded-md text-sm"
           {...register("email")}
         />

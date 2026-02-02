@@ -349,7 +349,7 @@ export default async function StudentFeeDetailPage({
                               {new Date(p.paidAt).toLocaleString()} {p.reference ? `· ${p.reference}` : ""}
                               {" · "}
                               <a
-                                href={`/api/receipts/${p.id}/pdf`}
+                                href={`/finance/receipts/${p.id}/print`}
                                 target="_blank"
                                 rel="noreferrer"
                                 className="text-[11px] text-blue-600 hover:underline"

@@ -57,23 +57,11 @@ const getEnv = (key: string): string | null => {
   return typeof value === "string" && value.length > 0 ? value : null;
 };
 
-const mapAfricasTalkingStatusToLocal = (
-  status: string | null | undefined,
-  statusCode: number | null | undefined,
-): SmsDeliveryStatus => {
-  if (statusCode === 101) {
-    // Africa's Talking 101: Success
-    return "SENT";
-  }
-
-  if (!status) return "SENT";
-
-  const lower = status.toLowerCase();
-  if (lower === "success" || lower === "sent") {
-    return "SENT";
-  }
-
-  return "FAILED";
+type MobileSasaSingleSmsResponse = {
+  status?: boolean;
+  responseCode?: string;
+  message?: string;
+  messageId?: string;
 };
 
 export const sendSms = async (input: SendSmsInput): Promise<void> => {
@@ -95,18 +83,16 @@ export const sendSms = async (input: SendSmsInput): Promise<void> => {
   });
 
   const smsId = created.id;
+  const apiToken = getEnv("MOBILESASA_API_TOKEN");
+  const senderId = getEnv("MOBILESASA_SENDER_ID");
 
-  const username = getEnv("AFRICASTALKING_USERNAME");
-  const apiKey = getEnv("AFRICASTALKING_API_KEY");
-  const fromShortCode = getEnv("AFRICASTALKING_FROM");
-
-  // If Africa's Talking is not configured, mark as SENT in the log without making any external call
-  if (!username || !apiKey) {
+  // If SMS provider is not configured, mark as SENT in the log without making any external call
+  if (!apiToken || !senderId) {
     await smsPrisma.smsNotification.update({
       where: { id: smsId },
       data: {
         status: "SENT",
-        provider: "africastalking-stub",
+        provider: "mobilesasa-stub",
         sentAt: new Date(),
       },
     });
@@ -114,22 +100,18 @@ export const sendSms = async (input: SendSmsInput): Promise<void> => {
   }
 
   try {
-    const params = new URLSearchParams();
-    params.append("username", username);
-    params.append("to", toPhone);
-    params.append("message", body);
-    if (fromShortCode) {
-      params.append("from", fromShortCode);
-    }
-
-    const response = await fetch("https://api.africastalking.com/version1/messaging", {
+    const response = await fetch("https://api.mobilesasa.com/v1/send/message", {
       method: "POST",
       headers: {
-        apiKey,
-        "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+        Authorization: `Bearer ${apiToken}`,
+        "Content-Type": "application/json",
         Accept: "application/json",
       },
-      body: params.toString(),
+      body: JSON.stringify({
+        senderID: senderId,
+        message: body,
+        phone: toPhone,
+      }),
     });
 
     if (!response.ok) {
@@ -138,52 +120,27 @@ export const sendSms = async (input: SendSmsInput): Promise<void> => {
         where: { id: smsId },
         data: {
           status: "FAILED",
-          provider: "africastalking",
+          provider: "mobilesasa",
           errorMessage: errorText.slice(0, 1000),
         },
       });
       return;
     }
 
-    type AfricasTalkingRecipient = {
-      status?: string;
-      statusCode?: number;
-      number?: string;
-      messageId?: string;
-      cost?: string;
-    };
+    const raw = (await response.json()) as MobileSasaSingleSmsResponse;
 
-    type AfricasTalkingResponse = {
-      SMSMessageData?: {
-        Message?: string;
-        Recipients?: AfricasTalkingRecipient[];
-      };
-    };
-
-    const raw = (await response.json()) as AfricasTalkingResponse;
-    const recipient = raw.SMSMessageData?.Recipients?.[0] ?? null;
-    const localStatus = mapAfricasTalkingStatusToLocal(
-      recipient?.status ?? null,
-      typeof recipient?.statusCode === "number" ? recipient.statusCode : null,
-    );
-    const messageId = recipient?.messageId ?? null;
+    const isSuccess = raw.status === true && raw.responseCode === "0200";
+    const localStatus: SmsDeliveryStatus = isSuccess ? "SENT" : "FAILED";
 
     let logicalErrorMessage: string | null = null;
-    if (localStatus === "FAILED") {
+    if (!isSuccess) {
       const parts: string[] = [];
-      const topMessage = raw.SMSMessageData?.Message;
-      if (typeof topMessage === "string" && topMessage.length > 0) {
-        parts.push(topMessage);
+      if (typeof raw.message === "string" && raw.message.length > 0) {
+        parts.push(raw.message);
       }
-      const recipientStatus = recipient?.status;
-      if (typeof recipientStatus === "string" && recipientStatus.length > 0) {
-        parts.push(`Status: ${recipientStatus}`);
+      if (typeof raw.responseCode === "string" && raw.responseCode.length > 0) {
+        parts.push(`Code: ${raw.responseCode}`);
       }
-      const recipientStatusCode = recipient?.statusCode;
-      if (typeof recipientStatusCode === "number") {
-        parts.push(`Code: ${recipientStatusCode}`);
-      }
-
       const combined = parts.join(" | ");
       logicalErrorMessage = combined.length > 0 ? combined.slice(0, 1000) : null;
     }
@@ -192,19 +149,19 @@ export const sendSms = async (input: SendSmsInput): Promise<void> => {
       where: { id: smsId },
       data: {
         status: localStatus,
-        provider: "africastalking",
-        externalId: messageId,
+        provider: "mobilesasa",
+        externalId: raw.messageId ?? null,
         errorMessage: logicalErrorMessage,
         sentAt: new Date(),
       },
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown Africa's Talking error";
+    const message = error instanceof Error ? error.message : "Unknown MobileSasa error";
     await smsPrisma.smsNotification.update({
       where: { id: smsId },
       data: {
         status: "FAILED",
-        provider: "africastalking",
+        provider: "mobilesasa",
         errorMessage: message.slice(0, 1000),
       },
     });

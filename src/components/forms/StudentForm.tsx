@@ -171,6 +171,10 @@ const StudentForm = ({ type, data, setOpen, relatedData }: StudentFormProps) => 
   const parents = parentsResponse?.data ?? [];
 
   const getGradeLabel = (level: number): string => {
+    if (level === 0) {
+      return "Playgroup";
+    }
+
     if (level === 1) {
       return "PP1";
     }

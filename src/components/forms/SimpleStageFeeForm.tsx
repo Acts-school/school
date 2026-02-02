@@ -143,7 +143,7 @@ export default function SimpleStageFeeForm() {
             className="ring-[1.5px] ring-gray-300 p-2 rounded-md text-sm"
             {...register("stageGroup", { required: true })}
           >
-            <option value="ECDE">ECDE (PP1–PP2)</option>
+            <option value="ECDE">ECDE (Playgroup–PP2)</option>
             <option value="PRIMARY">Primary (Grade 1–6)</option>
             <option value="JSS">Junior Secondary (Grade 7–9)</option>
           </select>

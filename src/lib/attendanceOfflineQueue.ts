@@ -1,4 +1,4 @@
-const DB_NAME = "emmanuelacts-attendance-offline-writes";
+const DB_NAME = "emmanuelact-attendance-offline-writes";
 const DB_VERSION = 1;
 const STORE_NAME = "attendanceQueue";
 

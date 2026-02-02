@@ -16,15 +16,24 @@ type SchoolPaymentInfoUpsertArgs = { where: { name: string }; update: { data: un
 type GradeUpsertArgs = { where: { level: number }; update: Record<string, never>; create: { level: number } };
 type GradeRow = { id: number };
 
-type ClassUpsertArgs = { where: { name: string }; update: Record<string, never>; create: { name: string; capacity: number; gradeId: number } };
-type ClassFindUniqueArgs = { where: { name: string } };
-type ClassRow = { id: number } | null;
+type ClassFindFirstArgs = { where: { name: string } };
+type ClassCreateArgs = { data: { name: string; capacity: number; gradeId: number } };
+type ClassRow = { id: number };
 type ClassFindManyArgs = { where: { name: { in: string[] } } };
 
 type ClassFeeStructureUpsertArgs = {
   where: { classId_feeCategoryId_term_academicYear: { classId: number; feeCategoryId: number; term: "TERM1" | "TERM2" | "TERM3" | null; academicYear: number } };
   update: { amount: number; active: boolean };
   create: { classId: number; feeCategoryId: number; term: "TERM1" | "TERM2" | "TERM3" | null; academicYear: number; amount: number; active: boolean };
+};
+
+type ClassFeeStructureRow = { id: number };
+type ClassFeeStructureFindFirstArgs = {
+  where: { classId: number; feeCategoryId: number; term: "TERM1" | "TERM2" | "TERM3" | null; academicYear: number };
+};
+type ClassFeeStructureUpdateArgs = { where: { id: number }; data: { amount: number; active: boolean } };
+type ClassFeeStructureCreateArgs = {
+  data: { classId: number; feeCategoryId: number; term: "TERM1" | "TERM2" | "TERM3" | null; academicYear: number; amount: number; active: boolean };
 };
 
 type FeePrisma = {
@@ -34,8 +43,17 @@ type FeePrisma = {
   };
   schoolPaymentInfo: { upsert: (args: SchoolPaymentInfoUpsertArgs) => Promise<unknown> };
   grade: { upsert: (args: GradeUpsertArgs) => Promise<GradeRow> };
-  class: { upsert: (args: ClassUpsertArgs) => Promise<unknown>; findUnique: (args: ClassFindUniqueArgs) => Promise<ClassRow>; findMany: (args: ClassFindManyArgs) => Promise<Array<{ id: number; name: string }>> };
-  classFeeStructure: { upsert: (args: ClassFeeStructureUpsertArgs) => Promise<unknown> };
+  class: {
+    findFirst: (args: ClassFindFirstArgs) => Promise<ClassRow | null>;
+    create: (args: ClassCreateArgs) => Promise<ClassRow>;
+    findMany: (args: ClassFindManyArgs) => Promise<Array<{ id: number; name: string }>>;
+  };
+  classFeeStructure: {
+    upsert: (args: ClassFeeStructureUpsertArgs) => Promise<unknown>;
+    findFirst: (args: ClassFeeStructureFindFirstArgs) => Promise<ClassFeeStructureRow | null>;
+    update: (args: ClassFeeStructureUpdateArgs) => Promise<unknown>;
+    create: (args: ClassFeeStructureCreateArgs) => Promise<unknown>;
+  };
 };
 
 const feePrisma = prisma as unknown as FeePrisma;
@@ -113,11 +131,27 @@ async function ensureClassFeeStructurePrimary(year: number) {
     for (const l of all) {
       const cat = byName.get(l.name);
       if (!cat) continue;
-      await feePrisma.classFeeStructure.upsert({
-        where: { classId_feeCategoryId_term_academicYear: { classId: cls.id, feeCategoryId: cat.id, term: l.term, academicYear: year } },
-        update: { amount: l.amount, active: true },
-        create: { classId: cls.id, feeCategoryId: cat.id, term: l.term, academicYear: year, amount: l.amount, active: true },
-      });
+      if (l.term === null) {
+        const existing = await feePrisma.classFeeStructure.findFirst({
+          where: { classId: cls.id, feeCategoryId: cat.id, term: null, academicYear: year },
+        });
+        if (existing) {
+          await feePrisma.classFeeStructure.update({
+            where: { id: existing.id },
+            data: { amount: l.amount, active: true },
+          });
+        } else {
+          await feePrisma.classFeeStructure.create({
+            data: { classId: cls.id, feeCategoryId: cat.id, term: null, academicYear: year, amount: l.amount, active: true },
+          });
+        }
+      } else {
+        await feePrisma.classFeeStructure.upsert({
+          where: { classId_feeCategoryId_term_academicYear: { classId: cls.id, feeCategoryId: cat.id, term: l.term, academicYear: year } },
+          update: { amount: l.amount, active: true },
+          create: { classId: cls.id, feeCategoryId: cat.id, term: l.term, academicYear: year, amount: l.amount, active: true },
+        });
+      }
     }
   }
 }
@@ -136,11 +170,14 @@ async function ensureSchoolPaymentInfo() {
 
 async function ensureGradeAndClassECDE() {
   const ecde = await feePrisma.grade.upsert({ where: { level: 0 }, update: {}, create: { level: 0 } });
-  await feePrisma.class.upsert({ where: { name: "ECDE" }, update: {}, create: { name: "ECDE", capacity: 30, gradeId: ecde.id } });
+  const existingClass = await feePrisma.class.findFirst({ where: { name: "ECDE" } });
+  if (!existingClass) {
+    await feePrisma.class.create({ data: { name: "ECDE", capacity: 30, gradeId: ecde.id } });
+  }
 }
 
 async function ensureClassFeeStructureECDE(year: number) {
-  const cls = await feePrisma.class.findUnique({ where: { name: "ECDE" } });
+  const cls = await feePrisma.class.findFirst({ where: { name: "ECDE" } });
   if (!cls) return;
 
   const categories = await feePrisma.feeCategory.findMany({ where: { name: { in: ["Tuition", "External Exams", "Meals", "Activity", "Assessment Book"] } } });
@@ -165,15 +202,32 @@ async function ensureClassFeeStructureECDE(year: number) {
   for (const l of lines) {
     const cat = byName.get(l.feeCategoryName);
     if (!cat) continue;
-    await feePrisma.classFeeStructure.upsert({
-      where: { classId_feeCategoryId_term_academicYear: { classId: cls.id, feeCategoryId: cat.id, term: l.term, academicYear: year } },
-      update: { amount: l.amount, active: true },
-      create: { classId: cls.id, feeCategoryId: cat.id, term: l.term, academicYear: year, amount: l.amount, active: true },
-    });
+    if (l.term === null) {
+      const existing = await feePrisma.classFeeStructure.findFirst({
+        where: { classId: cls.id, feeCategoryId: cat.id, term: null, academicYear: year },
+      });
+      if (existing) {
+        await feePrisma.classFeeStructure.update({
+          where: { id: existing.id },
+          data: { amount: l.amount, active: true },
+        });
+      } else {
+        await feePrisma.classFeeStructure.create({
+          data: { classId: cls.id, feeCategoryId: cat.id, term: null, academicYear: year, amount: l.amount, active: true },
+        });
+      }
+    } else {
+      await feePrisma.classFeeStructure.upsert({
+        where: { classId_feeCategoryId_term_academicYear: { classId: cls.id, feeCategoryId: cat.id, term: l.term, academicYear: year } },
+        update: { amount: l.amount, active: true },
+        create: { classId: cls.id, feeCategoryId: cat.id, term: l.term, academicYear: year, amount: l.amount, active: true },
+      });
+    }
   }
 }
 
-export async function seedFees(): Promise<void> {
+export async function seedFees(year?: number): Promise<void> {
+  const effectiveYear = year ?? 2025;
   await ensureFeeCategory("Tuition", "TERMLY", true);
   await ensureFeeCategory("External Exams", "TERMLY", true);
   await ensureFeeCategory("Meals", "TERMLY", true);
@@ -187,6 +241,6 @@ export async function seedFees(): Promise<void> {
 
   await ensureSchoolPaymentInfo();
   await ensureGradeAndClassECDE();
-  await ensureClassFeeStructureECDE(2025);
-  await ensureClassFeeStructurePrimary(2025);
+  await ensureClassFeeStructureECDE(effectiveYear);
+  await ensureClassFeeStructurePrimary(effectiveYear);
 }
