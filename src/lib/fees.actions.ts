@@ -417,10 +417,28 @@ export const createStageFeeDefinitionAndApply = async (
       gradeWhere.level = { gte: 7, lte: 9 };
     }
 
-    const grades = await stageFeePrisma.grade.findMany({
+    const fetchedGrades = await stageFeePrisma.grade.findMany({
       where: gradeWhere,
       select: { id: true, level: true, stage: true },
     });
+
+    let grades = fetchedGrades;
+
+    if (stageGroup === "PRIMARY") {
+      grades = fetchedGrades.filter((g) => g.stage !== "PRE_PRIMARY");
+    } else if (stageGroup === "JSS") {
+      grades = fetchedGrades.filter((g) => {
+        if (g.stage === "JUNIOR_SECONDARY") {
+          return true;
+        }
+
+        if (g.stage === null && g.level >= 7 && g.level <= 9) {
+          return true;
+        }
+
+        return false;
+      });
+    }
 
     if (grades.length === 0) {
       return {
