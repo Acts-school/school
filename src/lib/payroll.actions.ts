@@ -217,11 +217,13 @@ type PrismaPayrollClient = {
   };
   staff: {
     findMany: (args: StaffFindManyArgs) => Promise<StaffRow[]>;
+    update: (args: { where: { id: string }; data: { basicSalary: number } }) => Promise<unknown>;
   };
   staffPayroll: {
     create: (args: StaffPayrollCreateArgs) => Promise<unknown>;
     update: (args: StaffPayrollUpdateArgs) => Promise<unknown>;
     findMany: StaffPayrollFindMany;
+    findUnique: (args: { where: { id: number }; select: { staffId: true } }) => Promise<{ staffId: string } | null>;
   };
   expense: {
     create: (args: ExpenseCreateArgs) => Promise<unknown>;
@@ -335,6 +337,7 @@ export const createPayrollPeriod = async (
     }
 
     revalidatePath("/finance/payroll");
+    revalidatePath("/finance/staff");
     return { success: true, error: false } as const;
   } catch (e) {
     console.error(e);
@@ -379,22 +382,43 @@ export const updateStaffPayroll = async (
         ? { status: data.status }
         : {};
 
-    await payrollPrisma.staffPayroll.update({
+    // Get the staffId from the payroll row before updating
+    const payrollRow = await payrollPrisma.staffPayroll.findUnique({
       where: { id: data.id },
-      data: {
-        basicSalary: data.basicSalaryMinor,
-        allowances: data.allowancesMinor,
-        deductions: data.deductionsMinor,
-        netPay,
-        ...notesPatch,
-        ...statusPatch,
-        ...paymentMethodPatch,
-        ...paymentReferencePatch,
-        ...paidAtPatch,
-      },
+      select: { staffId: true },
     });
 
+    if (!payrollRow) {
+      return { success: false, error: true } as const;
+    }
+
+    await Promise.all([
+      // Update the payroll row
+      payrollPrisma.staffPayroll.update({
+        where: { id: data.id },
+        data: {
+          basicSalary: data.basicSalaryMinor,
+          allowances: data.allowancesMinor,
+          deductions: data.deductionsMinor,
+          netPay,
+          ...notesPatch,
+          ...statusPatch,
+          ...paymentMethodPatch,
+          ...paymentReferencePatch,
+          ...paidAtPatch,
+        },
+      }),
+      // Also update the staff's basic salary
+      payrollPrisma.staff.update({
+        where: { id: payrollRow.staffId },
+        data: {
+          basicSalary: data.basicSalaryMinor,
+        },
+      }),
+    ]);
+
     revalidatePath("/finance/payroll");
+    revalidatePath("/finance/staff");
     return { success: true, error: false } as const;
   } catch (e) {
     console.error(e);
@@ -463,6 +487,7 @@ export const closePayrollPeriod = async (
     }
 
     revalidatePath("/finance/payroll");
+    revalidatePath("/finance/staff");
     return { success: true, error: false } as const;
   } catch (e) {
     console.error(e);
@@ -568,11 +593,19 @@ export const prefillPayrollFromBudget = async (
       const newNetPay = Math.max(newBasicSalary + row.allowances - row.deductions, 0);
 
       ops.push(
+        // Update the payroll row
         payrollPrisma.staffPayroll.update({
           where: { id: row.id },
           data: {
             basicSalary: newBasicSalary,
             netPay: newNetPay,
+          },
+        }),
+        // Also update the staff's basic salary
+        payrollPrisma.staff.update({
+          where: { id: row.staffId },
+          data: {
+            basicSalary: newBasicSalary,
           },
         }),
       );
@@ -585,6 +618,7 @@ export const prefillPayrollFromBudget = async (
     await Promise.all(ops);
 
     revalidatePath("/finance/payroll");
+    revalidatePath("/finance/staff");
     return { success: true, error: false } as const;
   } catch (e) {
     console.error(e);
@@ -720,6 +754,7 @@ export const createStaffPayrollRow = async (
     });
 
     revalidatePath("/finance/payroll");
+    revalidatePath("/finance/staff");
     return { success: true, error: false };
   } catch (e) {
     console.error(e);
@@ -806,6 +841,7 @@ export const deleteStaffPayrollRow = async (
     });
 
     revalidatePath("/finance/payroll");
+    revalidatePath("/finance/staff");
     return { success: true, error: false };
   } catch (e) {
     console.error(e);

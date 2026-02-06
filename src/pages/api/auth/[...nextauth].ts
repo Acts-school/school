@@ -2,7 +2,7 @@ import NextAuth from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
 import bcrypt from "bcryptjs"
 import prisma from "@/lib/prisma"
-import { envServer } from "@/lib/env.server"
+import { getEnvServer } from "@/lib/env.server";
 import logger from "@/lib/logger"
 
 export const authOptions = {
@@ -85,7 +85,7 @@ export const authOptions = {
   session: {
     strategy: "jwt" as const,
   },
-  secret: envServer.NEXTAUTH_SECRET,
+  secret: getEnvServer().NEXTAUTH_SECRET,
   pages: {
     signIn: '/',
   },
