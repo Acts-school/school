@@ -25,8 +25,6 @@ type PrismaFacade = {
   auditLog: { create: (args: { data: { actorUserId: string; entity: string; entityId: string; oldValue: unknown; newValue: unknown; reason?: string | null } }) => Promise<unknown> };
 };
 
-const db = prisma as unknown as PrismaFacade;
-
 const PatchSchema = z
   .object({
     amountMinor: z.number().int().nonnegative().optional(),
@@ -53,10 +51,11 @@ const toSingleValue = (value: string | string[] | undefined): string | undefined
 };
 
 export async function PATCH(req: NextRequest, context: RouteContext) {
-    // Import inside function to prevent build-time execution
-    const { getServerSession } = await import('next-auth');
-    const authOptions = (await import('@/pages/api/auth/[...nextauth]')).authOptions;
-    const prisma = (await import('@/lib/prisma')).default;
+  // Import inside function to prevent build-time execution
+  const { getServerSession } = await import('next-auth');
+  const authOptions = (await import('@/pages/api/auth/[...nextauth]')).authOptions;
+  const prisma = (await import('@/lib/prisma')).default;
+  const db = prisma as unknown as PrismaFacade;
 
   const session = await getServerSession(authOptions);
   if (!session?.user || !["admin", "accountant"].includes(session.user.role)) {

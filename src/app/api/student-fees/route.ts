@@ -73,8 +73,6 @@ type StudentFeePrisma = {
   $transaction: (ops: ReadonlyArray<Promise<unknown>>) => Promise<Array<unknown>>;
 };
 
-const studentFeePrisma = prisma as unknown as StudentFeePrisma;
-
 interface ApiResponse<T> {
   data: T[];
   pagination: {
@@ -87,12 +85,13 @@ interface ApiResponse<T> {
 
 export async function GET(
   req: NextRequest,
-): Promise<NextResponse<ApiResponse<StudentFeeListItem> | {
-    // Import inside function to prevent build-time execution
-    const { getServerSession } = await import('next-auth');
-    const authOptions = (await import('@/pages/api/auth/[...nextauth]')).authOptions;
-    const prisma = (await import('@/lib/prisma')).default;
- error: string }>> {
+): Promise<NextResponse<ApiResponse<StudentFeeListItem> | { error: string }>> {
+  // Import inside function to prevent build-time execution
+  const { getServerSession } = await import('next-auth');
+  const authOptions = (await import('@/pages/api/auth/[...nextauth]')).authOptions;
+  const prisma = (await import('@/lib/prisma')).default;
+  const studentFeePrisma = prisma as unknown as StudentFeePrisma;
+
   try {
     const session = await getServerSession(authOptions);
 

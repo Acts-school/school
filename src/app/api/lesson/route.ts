@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 export async function DELETE(request: NextRequest): Promise<NextResponse> {
     // Import inside function to prevent build-time execution
     const prisma = (await import('@/lib/prisma')).default;
-    const { getCurrentSchoolContext } = await import('@/lib/authz');
+    const { getCurrentSchoolContext, ensurePermission } = await import('@/lib/authz');
 
   try {
     await ensurePermission("lessons.write");

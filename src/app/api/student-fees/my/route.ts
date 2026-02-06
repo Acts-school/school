@@ -107,8 +107,6 @@ type MyStudentFeePrisma = {
   $transaction: (ops: ReadonlyArray<Promise<unknown>>) => Promise<Array<unknown>>;
 };
 
-const myStudentFeePrisma = prisma as unknown as MyStudentFeePrisma;
-
 interface ApiResponse<T> {
   data: T[];
   pagination: {
@@ -127,7 +125,7 @@ export async function GET(
   const authOptions = (await import('@/pages/api/auth/[...nextauth]')).authOptions;
   const prisma = (await import('@/lib/prisma')).default;
   const myStudentFeePrisma = prisma as unknown as MyStudentFeePrisma;
-  
+
   try {
     const session = await getServerSession(authOptions);
 

@@ -15,7 +15,8 @@
     "test:watch": "vitest",
     "vercel-build": "prisma migrate deploy && prisma generate && next build",
     "seed:learning-areas": "ts-node --compiler-options \"{\\\"module\\\":\\\"CommonJS\\\"}\" prisma/seed-learning-areas.ts",
-    "seed:dev": "ts-node --compiler-options \"{\\\"module\\\":\\\"CommonJS\\\"}\" prisma/seed-dev.ts"
+    "seed:dev": "ts-node --compiler-options \"{\\\"module\\\":\\\"CommonJS\\\"}\" prisma/seed-dev.ts",
+    "prebuild": "npx prisma generate"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",

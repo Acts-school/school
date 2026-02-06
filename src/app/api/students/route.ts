@@ -121,9 +121,14 @@ type StudentDeletePrisma = {
   };
 };
 
-const studentDeletePrisma = prisma as unknown as StudentDeletePrisma;
-
 export async function DELETE(req: NextRequest) {
+  // Import inside function to prevent build-time execution
+  const { getServerSession } = await import('next-auth');
+  const authOptions = (await import('@/pages/api/auth/[...nextauth]')).authOptions;
+  const prisma = (await import('@/lib/prisma')).default;
+  const { getCurrentSchoolContext } = await import('@/lib/authz');
+  const studentDeletePrisma = prisma as unknown as StudentDeletePrisma;
+  
   try {
     const session = await getServerSession(authOptions);
     

@@ -55,13 +55,12 @@ type PrismaFacade = {
   $transaction: <T>(ops: ReadonlyArray<Promise<T>>) => Promise<T[]>;
 };
 
-const db = prisma as unknown as PrismaFacade;
-
 export async function POST(req: NextRequest) {
     // Import inside function to prevent build-time execution
     const { getServerSession } = await import('next-auth');
     const authOptions = (await import('@/pages/api/auth/[...nextauth]')).authOptions;
     const prisma = (await import('@/lib/prisma')).default;
+    const db = prisma as unknown as PrismaFacade;
 
   const session = await getServerSession(authOptions);
   if (!session?.user || !["admin", "accountant"].includes(session.user.role)) {

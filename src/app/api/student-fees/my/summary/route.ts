@@ -39,8 +39,6 @@ type StudentFeeSummaryPrisma = {
   };
 };
 
-const studentFeeSummaryPrisma = prisma as unknown as StudentFeeSummaryPrisma;
-
 interface MyStudentFeesSummaryResponse {
   term: TermLiteral | null;
   year: number | null;
@@ -67,11 +65,14 @@ const getYear = (row: StudentFeeSummaryRow): number => {
 export async function GET(
   req: NextRequest,
 ): Promise<NextResponse<MyStudentFeesSummaryResponse | {
-    // Import inside function to prevent build-time execution
-    const { getServerSession } = await import('next-auth');
-    const authOptions = (await import('@/pages/api/auth/[...nextauth]')).authOptions;
-    const prisma = (await import('@/lib/prisma')).default;
- error: string }>> {
+  error: string
+}>> {
+  // Import inside function to prevent build-time execution
+  const { getServerSession } = await import('next-auth');
+  const authOptions = (await import('@/pages/api/auth/[...nextauth]')).authOptions;
+  const prisma = (await import('@/lib/prisma')).default;
+  const studentFeeSummaryPrisma = prisma as unknown as StudentFeeSummaryPrisma;
+
   try {
     const session = await getServerSession(authOptions);
 

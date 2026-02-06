@@ -122,8 +122,6 @@ type MessagesPrismaClient = {
   $transaction: <T>(ops: ReadonlyArray<Promise<T>>) => Promise<T[]>;
 };
 
-const messagesPrisma = prisma as unknown as MessagesPrismaClient;
-
 type UserNameRow = { id: string; username: string };
 type NamedUserRow = { id: string; username: string; name: string; surname: string };
 
@@ -150,19 +148,22 @@ type UserLookupPrisma = {
   accountant: { findMany: (args: AccountantLookupArgs) => Promise<UserNameRow[]> };
 };
 
-const userLookupPrisma = prisma as unknown as UserLookupPrisma;
-
 export const GET = async (req: NextRequest): Promise<NextResponse> => {
-    // Import inside function to prevent build-time execution
-    const prisma = (await import('@/lib/prisma')).default;
-    const { getCurrentSchoolContext } = await import('@/lib/authz');
+  // Import inside function to prevent build-time execution
+  const prisma = (await import('@/lib/prisma')).default;
+  const messagesPrisma = prisma as unknown as MessagesPrismaClient;
+  const userLookupPrisma = prisma as unknown as UserLookupPrisma;
+  const { getCurrentSchoolContext, ensurePermission } = await import('@/lib/authz');
+  const { getServerSession } = await import('next-auth');
+  const authOptions = (await import('@/pages/api/auth/[...nextauth]')).authOptions;
 
   try {
     await ensurePermission("messages.read");
-    const auth = await getAuthContext();
-    if (!auth) {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const auth = { userId: session.user.id };
 
     const { searchParams } = new URL(req.url);
     const threadIdParam = searchParams.get("threadId");
@@ -341,12 +342,21 @@ interface SendMessageBody {
 }
 
 export const POST = async (req: NextRequest): Promise<NextResponse> => {
+  // Import inside function to prevent build-time execution
+  const prisma = (await import('@/lib/prisma')).default;
+  const messagesPrisma = prisma as unknown as MessagesPrismaClient;
+  const userLookupPrisma = prisma as unknown as UserLookupPrisma;
+  const { getCurrentSchoolContext, ensurePermission } = await import('@/lib/authz');
+  const { getServerSession } = await import('next-auth');
+  const authOptions = (await import('@/pages/api/auth/[...nextauth]')).authOptions;
+
   try {
     await ensurePermission("messages.send");
-    const auth = await getAuthContext();
-    if (!auth) {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const auth = { userId: session.user.id };
 
     const json = (await req.json()) as unknown;
 

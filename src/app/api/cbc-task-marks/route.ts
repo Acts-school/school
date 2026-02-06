@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
     const { getServerSession } = await import('next-auth');
     const authOptions = (await import('@/pages/api/auth/[...nextauth]')).authOptions;
     const prisma = (await import('@/lib/prisma')).default;
-    const { getCurrentSchoolContext } = await import('@/lib/authz');
+    const { getCurrentSchoolContext, ensurePermission } = await import('@/lib/authz');
 
   try {
     const session = await getServerSession(authOptions);

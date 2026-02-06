@@ -22,13 +22,12 @@ type CurrentSchoolPrisma = {
   };
 };
 
-const currentSchoolPrisma = prisma as unknown as CurrentSchoolPrisma;
-
 export async function POST(req: NextRequest): Promise<NextResponse> {
     // Import inside function to prevent build-time execution
     const { getServerSession } = await import('next-auth');
     const authOptions = (await import('@/pages/api/auth/[...nextauth]')).authOptions;
     const prisma = (await import('@/lib/prisma')).default;
+    const currentSchoolPrisma = prisma as unknown as CurrentSchoolPrisma;
 
   try {
     const session = await getServerSession(authOptions);
