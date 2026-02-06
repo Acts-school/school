@@ -395,3 +395,6 @@ export default async function AgingPage({ searchParams }: AgingPageProps) {
     </div>
   );
 }
+
+// Force dynamic rendering to prevent build-time execution
+export const dynamic = 'force-dynamic';

@@ -396,3 +396,6 @@ export default async function ClearancePage({ searchParams }: ClearancePageProps
     </div>
   );
 }
+
+// Force dynamic rendering to prevent build-time execution
+export const dynamic = 'force-dynamic';

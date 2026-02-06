@@ -259,3 +259,6 @@ export default async function DebtorsPage({ searchParams }: DebtorsPageProps) {
     </div>
   );
 }
+
+// Force dynamic rendering to prevent build-time execution
+export const dynamic = 'force-dynamic';
