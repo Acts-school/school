@@ -1,6 +1,3 @@
-import prisma from "@/lib/prisma";
-import { ensurePermission } from "@/lib/authz";
-import { getSchoolSettingsDefaults } from "@/lib/schoolSettings";
 import ExcelJS from "exceljs";
 
 type TermLiteral = "TERM1" | "TERM2" | "TERM3";
@@ -95,8 +92,6 @@ type FinancePrisma = {
   };
 };
 
-const financePrisma = prisma as unknown as FinancePrisma;
-
 const getCategoryTotals = (
   pivot: PivotTotalsByTerm,
   term: TermLiteral,
@@ -128,7 +123,15 @@ const termLabel = (term: TermLiteral): string => {
 };
 
 export async function GET(request: Request): Promise<Response> {
+  // Import inside function to prevent build-time execution
+  const { ensurePermission } = await import("@/lib/authz");
+  const { getSchoolSettingsDefaults } = await import("@/lib/schoolSettings");
+  const prisma = (await import("@/lib/prisma")).default;
+  
   await ensurePermission("fees.read");
+
+  // Type casting for prisma
+  const financePrisma = prisma as unknown as FinancePrisma;
 
   const url = new URL(request.url);
   const yearParam = url.searchParams.get("year");
