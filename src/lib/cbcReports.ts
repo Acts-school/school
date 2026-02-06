@@ -1,4 +1,3 @@
-import prisma from "@/lib/prisma";
 import type {
   CbcCompetency,
   CbcCompetencyLevel,
@@ -88,6 +87,8 @@ export const getCbcTermReport = async (
   params: GetCbcTermReportParams,
 ): Promise<CbcTermReport | null> => {
   const { studentId, academicYear, term } = params;
+
+  const { default: prisma } = await import("@/lib/prisma");
 
   const student = await prisma.student.findUnique({
     where: { id: studentId },
@@ -397,6 +398,8 @@ export const getTermAttendanceSummary = async (
 
   const startOfYear = new Date(academicYear, 0, 1);
   const startOfNextYear = new Date(academicYear + 1, 0, 1);
+
+  const { default: prisma } = await import("@/lib/prisma");
 
   const attendanceRecords = await prisma.attendance.findMany({
     where: {
