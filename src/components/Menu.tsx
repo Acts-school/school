@@ -52,19 +52,19 @@ const menuItems = [
         icon: "/exam.png",
         label: "Exams",
         href: "/list/exams",
-        visible: ["admin", "teacher", "student", "parent"],
+        visible: [],
       },
       {
         icon: "/assignment.png",
         label: "Assignments",
         href: "/list/assignments",
-        visible: ["admin", "teacher", "student", "parent"],
+        visible: [],
       },
       {
         icon: "/result.png",
         label: "Results",
         href: "/list/results",
-        visible: ["admin", "teacher", "student", "parent"],
+        visible: [],
       },
       {
         icon: "/attendance.png",
@@ -88,7 +88,7 @@ const menuItems = [
         icon: "/result.png",
         label: "CBC Analytics",
         href: "/admin/cbc-analytics",
-        visible: ["admin"],
+        visible: [],
       },
       {
         icon: "/calendar.png",
@@ -154,13 +154,13 @@ const menuItems = [
         icon: "/result.png",
         label: "Invoices",
         href: "/finance/invoices",
-        visible: ["admin", "accountant"],
+        visible: [],
       },
       {
         icon: "/result.png",
         label: "Debtors",
         href: "/finance/debtors",
-        visible: ["admin", "accountant"],
+        visible: [],
       },
       {
         icon: "/finance.png",
@@ -178,7 +178,7 @@ const menuItems = [
         icon: "/result.png",
         label: "Aging",
         href: "/finance/aging",
-        visible: ["admin", "accountant"],
+        visible: [],
       },
       {
         icon: "/calendar.png",
