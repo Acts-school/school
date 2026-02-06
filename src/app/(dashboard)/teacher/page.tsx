@@ -1,9 +1,12 @@
 import Announcements from "@/components/Announcements";
 import BigCalendarContainer from "@/components/BigCalendarContainer";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/pages/api/auth/[...nextauth]";
 
 const TeacherPage = async () => {
+  const [{ getServerSession }, { authOptions }] = await Promise.all([
+    import("next-auth"),
+    import("@/pages/api/auth/[...nextauth]"),
+  ]);
+
   const session = await getServerSession(authOptions);
   const userId = session?.user?.id;
   return (
@@ -24,3 +27,4 @@ const TeacherPage = async () => {
 };
 
 export default TeacherPage;
+export const dynamic = "force-dynamic";

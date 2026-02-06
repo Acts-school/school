@@ -1,10 +1,5 @@
 import Announcements from "@/components/Announcements";
 import BigCalendarContainer from "@/components/BigCalendarContainer";
-import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/pages/api/auth/[...nextauth]";
-import { getSchoolSettingsDefaults } from "@/lib/schoolSettings";
-import { getLatestStudentSloRecordsForTerm } from "@/lib/actions";
 import type {
   Student,
   Term,
@@ -38,6 +33,20 @@ const SLO_LEVEL_LABELS: Record<SloAchievementLevel, string> = {
 };
 
 const ParentPage = async () => {
+  const [
+    { getServerSession },
+    { authOptions },
+    { default: prisma },
+    { getSchoolSettingsDefaults },
+    { getLatestStudentSloRecordsForTerm },
+  ] = await Promise.all([
+    import("next-auth"),
+    import("@/pages/api/auth/[...nextauth]"),
+    import("@/lib/prisma"),
+    import("@/lib/schoolSettings"),
+    import("@/lib/actions"),
+  ]);
+
   const session = await getServerSession(authOptions);
   const currentUserId = session?.user?.id;
 
@@ -228,3 +237,4 @@ const ParentPage = async () => {
 };
 
 export default ParentPage;
+export const dynamic = "force-dynamic";
