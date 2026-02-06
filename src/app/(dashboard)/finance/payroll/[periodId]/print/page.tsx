@@ -88,6 +88,8 @@ type PayrollPrintPrisma = {
   };
 };
 
+export const dynamic = 'force-dynamic';
+
 export default async function PayrollPrintPage({ params }: PageProps) {
   await ensurePermission("payroll.read");
 

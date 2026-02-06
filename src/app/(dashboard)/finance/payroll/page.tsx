@@ -7,6 +7,8 @@ const formatMonth = (month: number): string => {
   return new Date(2000, month - 1, 1).toLocaleString(undefined, { month: "long" });
 };
 
+export const dynamic = 'force-dynamic';
+
 export default async function PayrollPage() {
   await ensurePermission("payroll.read");
 

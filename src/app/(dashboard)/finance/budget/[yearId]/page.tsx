@@ -34,6 +34,8 @@ const toSingleValue = (
   return value;
 };
 
+export const dynamic = 'force-dynamic';
+
 export default async function BudgetDetailPage({ params }: BudgetDetailPageProps) {
   await ensurePermission("budget.read");
 
