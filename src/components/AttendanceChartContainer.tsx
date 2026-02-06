@@ -1,9 +1,9 @@
 import Image from "next/image";
 import AttendanceChart from "./AttendanceChart";
-import prisma from "@/lib/prisma";
-import { getCurrentSchoolContext } from "@/lib/authz";
 
 const AttendanceChartContainer = async () => {
+  const prisma = (await import("@/lib/prisma")).default;
+  const { getCurrentSchoolContext } = await import("@/lib/authz");
   const today = new Date();
   const dayOfWeek = today.getDay();
   const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;

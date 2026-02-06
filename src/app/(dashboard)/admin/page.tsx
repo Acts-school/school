@@ -60,3 +60,5 @@ const AdminPage = async ({ searchParams }: AdminPageProps) => {
 };
 
 export default AdminPage;
+
+export const dynamic = "force-dynamic";

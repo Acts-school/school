@@ -1,10 +1,12 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/pages/api/auth/[...nextauth]";
-import prisma from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
-import { getCurrentSchoolContext } from "@/lib/authz";
 
 const Announcements = async () => {
+  const { getServerSession } = await import("next-auth");
+  const authOptions = (await import("@/pages/api/auth/[...nextauth]"))
+    .authOptions;
+  const prisma = (await import("@/lib/prisma")).default;
+  const { getCurrentSchoolContext } = await import("@/lib/authz");
+
   const session = await getServerSession(authOptions);
   const userId = session?.user?.id;
   const role = session?.user?.role;

@@ -1,5 +1,3 @@
-import prisma from "@/lib/prisma";
-import { getCurrentSchoolContext } from "@/lib/authz";
 import FinanceChart, { type FinanceChartPoint } from "@/components/FinanceChart";
 
 const months = [
@@ -20,6 +18,8 @@ const months = [
 type MonthName = (typeof months)[number];
 
 const FinanceChartContainer = async () => {
+  const prisma = (await import("@/lib/prisma")).default;
+  const { getCurrentSchoolContext } = await import("@/lib/authz");
   const now = new Date();
   const yearStart = new Date(now.getFullYear(), 0, 1);
   const yearEnd = new Date(now.getFullYear() + 1, 0, 1);
