@@ -1,9 +1,12 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/pages/api/auth/[...nextauth]";
 import { redirect } from "next/navigation";
 import MyStudentFeesClient from "@/components/MyStudentFeesClient";
 
 const TeacherFeesPage = async () => {
+  const [{ getServerSession }, { authOptions }] = await Promise.all([
+    import("next-auth"),
+    import("@/pages/api/auth/[...nextauth]"),
+  ]);
+
   const session = await getServerSession(authOptions);
 
   if (!session?.user || session.user.role !== "teacher") {
@@ -19,3 +22,4 @@ const TeacherFeesPage = async () => {
 };
 
 export default TeacherFeesPage;
+export const dynamic = "force-dynamic";

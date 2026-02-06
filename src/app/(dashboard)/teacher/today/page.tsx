@@ -1,9 +1,11 @@
-import { getServerSession } from "next-auth";
-
-import { authOptions } from "@/pages/api/auth/[...nextauth]";
 import TeacherTodayLessons from "@/components/TeacherTodayLessons";
 
 const TeacherTodayPage = async () => {
+  const [{ getServerSession }, { authOptions }] = await Promise.all([
+    import("next-auth"),
+    import("@/pages/api/auth/[...nextauth]"),
+  ]);
+
   const session = await getServerSession(authOptions);
   const role = session?.user?.role;
   const userId = session?.user?.id;
@@ -24,3 +26,4 @@ const TeacherTodayPage = async () => {
 };
 
 export default TeacherTodayPage;
+export const dynamic = "force-dynamic";

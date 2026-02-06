@@ -1,10 +1,13 @@
-import { getServerSession } from "next-auth";
-
-import { authOptions } from "@/pages/api/auth/[...nextauth]";
-import { getSchoolSettingsDefaults } from "@/lib/schoolSettings";
 import TeacherTaskRubricMarking from "@/components/TeacherTaskRubricMarking";
 
 const TeacherTasksPage = async () => {
+  const [{ getServerSession }, { authOptions }, { getSchoolSettingsDefaults }] =
+    await Promise.all([
+      import("next-auth"),
+      import("@/pages/api/auth/[...nextauth]"),
+      import("@/lib/schoolSettings"),
+    ]);
+
   const session = await getServerSession(authOptions);
   const role = session?.user?.role;
   const userId = session?.user?.id;
@@ -33,3 +36,4 @@ const TeacherTasksPage = async () => {
 };
 
 export default TeacherTasksPage;
+export const dynamic = "force-dynamic";

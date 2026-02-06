@@ -1,5 +1,3 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/pages/api/auth/[...nextauth]";
 import prisma from "@/lib/prisma";
 import ProfileForm, { type ProfileFormInput } from "@/components/forms/ProfileForm";
 import PreferencesForm, {
@@ -15,6 +13,11 @@ import { getSchoolSettingsDefaults } from "@/lib/schoolSettings";
 import { redirect } from "next/navigation";
 
 export default async function ProfilePage() {
+  const [{ getServerSession }, { authOptions }] = await Promise.all([
+    import("next-auth"),
+    import("@/pages/api/auth/[...nextauth]"),
+  ]);
+
   const session = await getServerSession(authOptions);
   const user = session?.user;
 
@@ -213,3 +216,5 @@ export default async function ProfilePage() {
     </div>
   );
 }
+
+export const dynamic = "force-dynamic";

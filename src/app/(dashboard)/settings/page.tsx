@@ -1,5 +1,3 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/pages/api/auth/[...nextauth]";
 import prisma from "@/lib/prisma";
 import SettingsForm, {
   type SettingsFormInput,
@@ -7,7 +5,13 @@ import SettingsForm, {
 import ChangePasswordForm from "@/components/forms/ChangePasswordForm";
 
 export default async function SettingsPage() {
-  const session = await getServerSession(authOptions);
+  const [{ getServerSession }, { authOptions: authOptionsDynamic }] =
+    await Promise.all([
+      import("next-auth"),
+      import("@/pages/api/auth/[...nextauth]"),
+    ]);
+
+  const session = await getServerSession(authOptionsDynamic);
   const role = session?.user?.role;
 
   if (!session?.user) {
