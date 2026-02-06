@@ -527,3 +527,6 @@ export async function GET(request: Request): Promise<Response> {
     },
   });
 }
+
+// Force dynamic rendering to prevent build-time execution
+export const dynamic = 'force-dynamic';
