@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 
-import prisma from "@/lib/prisma";
-import { ensurePermission, getCurrentSchoolContext } from "@/lib/authz";
-
 type AttendanceOpType = "CREATE_ATTENDANCE" | "UPDATE_ATTENDANCE";
 
 type AttendanceSyncResultStatus = "succeeded" | "failed";
@@ -52,7 +49,11 @@ function parseDate(value: string): Date | null {
 
 export async function POST(
   req: NextRequest,
-): Promise<NextResponse<AttendanceSyncResponse | { error: string }>> {
+): Promise<NextResponse<AttendanceSyncResponse | {
+    // Import inside function to prevent build-time execution
+    const prisma = (await import('@/lib/prisma')).default;
+    const { getCurrentSchoolContext } = await import('@/lib/authz');
+ error: string }>> {
   try {
     await ensurePermission("attendance.write");
     const { schoolId } = await getCurrentSchoolContext();
@@ -252,3 +253,6 @@ async function handleUpdateAttendance(
 
   return { ok: true };
 }
+
+// Force dynamic rendering to prevent build-time execution
+export const dynamic = 'force-dynamic';

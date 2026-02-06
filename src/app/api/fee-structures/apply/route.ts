@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/pages/api/auth/[...nextauth]";
-import prisma from "@/lib/prisma";
+
 import { z } from "zod";
 
 export type Term = "TERM1" | "TERM2" | "TERM3";
@@ -60,6 +58,11 @@ type PrismaFacade = {
 const db = prisma as unknown as PrismaFacade;
 
 export async function POST(req: NextRequest) {
+    // Import inside function to prevent build-time execution
+    const { getServerSession } = await import('next-auth');
+    const authOptions = (await import('@/pages/api/auth/[...nextauth]')).authOptions;
+    const prisma = (await import('@/lib/prisma')).default;
+
   const session = await getServerSession(authOptions);
   if (!session?.user || !["admin", "accountant"].includes(session.user.role)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -159,3 +162,6 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ ok: true });
 }
+
+// Force dynamic rendering to prevent build-time execution
+export const dynamic = 'force-dynamic';

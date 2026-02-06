@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { AssessmentKind, CbcCompetency, Prisma } from "@prisma/client";
 
-import prisma from "@/lib/prisma";
-import { ensurePermission, getCurrentSchoolContext } from "@/lib/authz";
-
 type AssignmentSyncOpType = "CREATE_ASSIGNMENT" | "UPDATE_ASSIGNMENT";
 
 type AssignmentSyncStatus = "succeeded" | "failed";
@@ -65,7 +62,11 @@ function parseDate(value: string): Date | null {
 
 export async function POST(
   req: NextRequest,
-): Promise<NextResponse<AssignmentSyncResponse | { error: string }>> {
+): Promise<NextResponse<AssignmentSyncResponse | {
+    // Import inside function to prevent build-time execution
+    const prisma = (await import('@/lib/prisma')).default;
+    const { getCurrentSchoolContext } = await import('@/lib/authz');
+ error: string }>> {
   try {
     await ensurePermission("assignments.write");
     const { schoolId } = await getCurrentSchoolContext();
@@ -269,3 +270,6 @@ async function handleUpdateAssignment(
 
   return { ok: true };
 }
+
+// Force dynamic rendering to prevent build-time execution
+export const dynamic = 'force-dynamic';

@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 
-import prisma from "@/lib/prisma";
-import { ensurePermission, getCurrentSchoolContext } from "@/lib/authz";
-
 type ResultSyncOpType = "CREATE_RESULT" | "UPDATE_RESULT";
 
 type ResultSyncStatus = "succeeded" | "failed";
@@ -57,7 +54,11 @@ function validateContext(payload: BaseResultOperationPayload): string | null {
 
 export async function POST(
   req: NextRequest,
-): Promise<NextResponse<ResultSyncResponse | { error: string }>> {
+): Promise<NextResponse<ResultSyncResponse | {
+    // Import inside function to prevent build-time execution
+    const prisma = (await import('@/lib/prisma')).default;
+    const { getCurrentSchoolContext } = await import('@/lib/authz');
+ error: string }>> {
   try {
     await ensurePermission("results.write");
     const { schoolId } = await getCurrentSchoolContext();
@@ -300,3 +301,6 @@ async function handleUpdateResult(
 
   return { ok: true };
 }
+
+// Force dynamic rendering to prevent build-time execution
+export const dynamic = 'force-dynamic';

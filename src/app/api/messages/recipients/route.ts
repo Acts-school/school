@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
-import { ensurePermission, getAuthContext } from "@/lib/authz";
 
 // Narrowed Prisma facade for recipient lookups
 
@@ -143,6 +141,10 @@ export type RecipientDto = {
 };
 
 export const GET = async (req: NextRequest): Promise<NextResponse> => {
+    // Import inside function to prevent build-time execution
+    const prisma = (await import('@/lib/prisma')).default;
+    const { getCurrentSchoolContext } = await import('@/lib/authz');
+
   try {
     await ensurePermission("messages.send");
     const auth = await getAuthContext();
@@ -252,3 +254,6 @@ export const GET = async (req: NextRequest): Promise<NextResponse> => {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 };
+
+// Force dynamic rendering to prevent build-time execution
+export const dynamic = 'force-dynamic';

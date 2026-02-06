@@ -1,7 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/pages/api/auth/[...nextauth]";
-import prisma from "@/lib/prisma";
 
 type SetCurrentSchoolBody = {
   schoolId: number | null;
@@ -28,6 +25,11 @@ type CurrentSchoolPrisma = {
 const currentSchoolPrisma = prisma as unknown as CurrentSchoolPrisma;
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
+    // Import inside function to prevent build-time execution
+    const { getServerSession } = await import('next-auth');
+    const authOptions = (await import('@/pages/api/auth/[...nextauth]')).authOptions;
+    const prisma = (await import('@/lib/prisma')).default;
+
   try {
     const session = await getServerSession(authOptions);
     const userId = session?.user?.id;
@@ -86,3 +88,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
+
+// Force dynamic rendering to prevent build-time execution
+export const dynamic = 'force-dynamic';

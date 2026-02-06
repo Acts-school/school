@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import type { Prisma } from "@prisma/client";
-import prisma from "@/lib/prisma";
+
 import { applyStudentFeePayment } from "@/lib/studentFeePayments";
 import { getSchoolSettingsDefaults } from "@/lib/schoolSettings";
 
@@ -272,6 +272,8 @@ const findStudentMatchByMsisdn = async (normalizedMsisdn: string): Promise<Stude
 };
 
 export async function POST(req: NextRequest): Promise<NextResponse<{ ResultCode: string; ResultDesc: string }>> {
+  // Import inside function to prevent build-time execution
+  const prisma = (await import('@/lib/prisma')).default;
   const json = (await req.json()) as unknown;
   const parsed = c2bConfirmSchema.safeParse(json);
 
@@ -454,3 +456,6 @@ export async function POST(req: NextRequest): Promise<NextResponse<{ ResultCode:
 
   return NextResponse.json({ ResultCode: "0", ResultDesc: "Received" });
 }
+
+// Force dynamic rendering to prevent build-time execution
+export const dynamic = 'force-dynamic';

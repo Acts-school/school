@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
+
 import { z } from "zod";
-import { authOptions } from "@/pages/api/auth/[...nextauth]";
-import prisma from "@/lib/prisma";
 
 const mpesaInitiateSchema = z.object({
   studentFeeId: z.string().min(1),
@@ -26,6 +24,11 @@ type MpesaInitiateError = { error: string };
 type MpesaInitiateResponse = MpesaInitiateSuccess | MpesaInitiateError;
 
 export async function POST(req: NextRequest): Promise<NextResponse<MpesaInitiateResponse>> {
+    // Import inside function to prevent build-time execution
+    const { getServerSession } = await import('next-auth');
+    const authOptions = (await import('@/pages/api/auth/[...nextauth]')).authOptions;
+    const prisma = (await import('@/lib/prisma')).default;
+
   try {
     const session = await getServerSession(authOptions);
 
@@ -222,3 +225,6 @@ async function initiateMpesaStkPush(input: InitiateMpesaStkPushInput): Promise<I
     merchantRequestId: parsed.MerchantRequestID,
   };
 }
+
+// Force dynamic rendering to prevent build-time execution
+export const dynamic = 'force-dynamic';
