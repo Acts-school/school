@@ -1,8 +1,4 @@
-import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/pages/api/auth/[...nextauth]";
-import { getSchoolSettingsDefaults } from "@/lib/schoolSettings";
-import { getCurrentSchoolContext } from "@/lib/authz";
 import type {
   CbcCompetency,
   CbcCompetencyLevel,
@@ -73,6 +69,14 @@ const emptySloCounts = (): SloLevelCounts => ({
 });
 
 const CbcAnalyticsPage = async () => {
+  // Import inside component to avoid touching Prisma/DB config at build time
+  const [{ authOptions }, { default: prisma }, { getSchoolSettingsDefaults }, { getCurrentSchoolContext }] = await Promise.all([
+    import("@/pages/api/auth/[...nextauth]"),
+    import("@/lib/prisma"),
+    import("@/lib/schoolSettings"),
+    import("@/lib/authz"),
+  ]);
+
   const session = await getServerSession(authOptions);
   const role = session?.user?.role;
 
@@ -401,70 +405,71 @@ const CbcAnalyticsPage = async () => {
                     ))}
                   </tbody>
                 </table>
-              </div>
             </div>
-          )}
+          </div>
+        )}
 
-			{sloClassSummaries.length > 0 && (
-				<div className="mt-6">
-					<h2 className="text-sm font-semibold text-gray-700">
-						SLO Analytics (current term)
-					</h2>
-					<p className="text-xs text-gray-500 mb-2">
-						Distribution of SLO levels by class and learning area.
-					</p>
-					<div className="overflow-x-auto">
-						<table className="min-w-full divide-y divide-gray-200 text-xs">
-							<thead className="bg-gray-50">
-								<tr>
-									<th className="px-4 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">
-										Class
-									</th>
-									<th className="px-4 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">
-										Learning area
-									</th>
-									<th className="px-4 py-2 text-right font-medium text-gray-500 uppercase tracking-wider">
-										Below expectations
-									</th>
-									<th className="px-4 py-2 text-right font-medium text-gray-500 uppercase tracking-wider">
-										Approaching expectations
-									</th>
-									<th className="px-4 py-2 text-right font-medium text-gray-500 uppercase tracking-wider">
-										Meeting expectations
-									</th>
-								</tr>
-							</thead>
-							<tbody className="bg-white divide-y divide-gray-200">
-								{sloClassSummaries.map((row) => (
-									<tr
-										key={`${row.classId}-${row.learningAreaName}`}
-									>
-										<td className="px-4 py-2 whitespace-nowrap text-gray-900">
-											{row.className}
-										</td>
-										<td className="px-4 py-2 whitespace-nowrap text-gray-900">
-											{row.learningAreaName}
-										</td>
-										<td className="px-4 py-2 whitespace-nowrap text-right text-gray-900">
-											{row.counts.BELOW_EXPECTATIONS}
-										</td>
-										<td className="px-4 py-2 whitespace-nowrap text-right text-gray-900">
-											{row.counts.APPROACHING_EXPECTATIONS}
-										</td>
-										<td className="px-4 py-2 whitespace-nowrap text-right text-gray-900">
-											{row.counts.MEETING_EXPECTATIONS}
-										</td>
-									</tr>
-								))}
-							</tbody>
-						</table>
-					</div>
-				</div>
-			)}
-        </>
-      )}
-    </div>
-  );
+        {sloClassSummaries.length > 0 && (
+          <div className="mt-6">
+            <h2 className="text-sm font-semibold text-gray-700">
+              SLO Analytics (current term)
+            </h2>
+            <p className="text-xs text-gray-500 mb-2">
+              Distribution of SLO levels by class and learning area.
+            </p>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200 text-xs">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">
+                      Class
+                    </th>
+                    <th className="px-4 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">
+                      Learning area
+                    </th>
+                    <th className="px-4 py-2 text-right font-medium text-gray-500 uppercase tracking-wider">
+                      Below expectations
+                    </th>
+                    <th className="px-4 py-2 text-right font-medium text-gray-500 uppercase tracking-wider">
+                      Approaching expectations
+                    </th>
+                    <th className="px-4 py-2 text-right font-medium text-gray-500 uppercase tracking-wider">
+                      Meeting expectations
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {sloClassSummaries.map((row) => (
+                    <tr key={`${row.classId}-${row.learningAreaName}`}>
+                      <td className="px-4 py-2 whitespace-nowrap text-gray-900">
+                        {row.className}
+                      </td>
+                      <td className="px-4 py-2 whitespace-nowrap text-gray-900">
+                        {row.learningAreaName}
+                      </td>
+                      <td className="px-4 py-2 whitespace-nowrap text-right text-gray-900">
+                        {row.counts.BELOW_EXPECTATIONS}
+                      </td>
+                      <td className="px-4 py-2 whitespace-nowrap text-right text-gray-900">
+                        {row.counts.APPROACHING_EXPECTATIONS}
+                      </td>
+                      <td className="px-4 py-2 whitespace-nowrap text-right text-gray-900">
+                        {row.counts.MEETING_EXPECTATIONS}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </>
+    )}
+  </div>
+);
 };
 
 export default CbcAnalyticsPage;
+
+// Force this page to be fully dynamic so Next.js does not pre-render it at build time
+export const dynamic = "force-dynamic";
