@@ -4,11 +4,14 @@ import { useMemo } from "react";
 import StudentFeePaymentFormInline from "@/components/StudentFeePaymentFormInline";
 import { useStudentFeesByStudent, type StudentFeesByStudentItem } from "@/hooks/useStudentFeesByStudent";
 
+type TermLiteral = "TERM1" | "TERM2" | "TERM3";
+
 export type ClearanceStudentPaymentModalProps = {
   open: boolean;
   onClose: () => void;
   studentId: string;
   year: number;
+  term: TermLiteral | null;
 };
 
 const formatKES = (minor: number): string => `KES ${((minor ?? 0) / 100).toFixed(2)}`;
@@ -18,8 +21,13 @@ const ClearanceStudentPaymentModal = ({
   onClose,
   studentId,
   year,
+  term,
 }: ClearanceStudentPaymentModalProps) => {
-  const query = useStudentFeesByStudent({ studentId, year });
+  const query = useStudentFeesByStudent({
+    studentId,
+    year,
+    ...(term ? { term } : {}),
+  });
 
   const fees: ReadonlyArray<StudentFeesByStudentItem> = useMemo(() => {
     const source = query.data?.data;

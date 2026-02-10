@@ -3,12 +3,15 @@
 import { useState } from "react";
 import ClearanceStudentPaymentModal from "@/components/ClearanceStudentPaymentModal";
 
+type TermLiteral = "TERM1" | "TERM2" | "TERM3";
+
 export type ClearanceStudentRowActionsProps = {
   studentId: string;
   year: number;
+  term: TermLiteral | null;
 };
 
-const ClearanceStudentRowActions = ({ studentId, year }: ClearanceStudentRowActionsProps) => {
+const ClearanceStudentRowActions = ({ studentId, year, term }: ClearanceStudentRowActionsProps) => {
   const [open, setOpen] = useState(false);
 
   return (
@@ -29,6 +32,7 @@ const ClearanceStudentRowActions = ({ studentId, year }: ClearanceStudentRowActi
         }}
         studentId={studentId}
         year={year}
+        term={term}
       />
     </>
   );

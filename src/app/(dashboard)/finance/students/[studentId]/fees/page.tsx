@@ -197,6 +197,17 @@ export default async function StudentFeeDetailPage({
   const gradeIdParam = student.grade ? encodeURIComponent(String(student.grade.id)) : null;
   const classIdParam = student.class ? encodeURIComponent(String(student.class.id)) : null;
 
+  const statementPrintUrl = (() => {
+    const base = `/finance/statements/student/${encodeURIComponent(student.id)}/print`;
+    const query = new URLSearchParams();
+    query.set("year", String(year));
+    if (term) {
+      query.set("term", term);
+    }
+    const queryString = query.toString();
+    return queryString ? `${base}?${queryString}` : base;
+  })();
+
   const breadcrumbItems: Array<{ label: string; href?: string }> = [
     { label: "Dashboard", href: "/" },
     { label: "Finance", href: "/finance/fees" },
@@ -271,6 +282,14 @@ export default async function StudentFeeDetailPage({
         <button className="px-3 py-1.5 text-xs rounded-md bg-gray-800 text-white">
           Go
         </button>
+        <a
+          href={statementPrintUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="ml-2 text-xs text-blue-600 hover:underline whitespace-nowrap"
+        >
+          Print statement
+        </a>
       </form>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
