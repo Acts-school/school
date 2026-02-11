@@ -26,8 +26,23 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Default bo'sh ob'ekt qaytaramiz
-    return NextResponse.json({});
+    const [subjects, classes, teachers] = await Promise.all([
+      prisma.subject.findMany({
+        select: { id: true, name: true },
+      }),
+      prisma.class.findMany({
+        select: { id: true, name: true },
+      }),
+      prisma.teacher.findMany({
+        select: { id: true, name: true, surname: true },
+      }),
+    ]);
+
+    return NextResponse.json({
+      subjects,
+      classes,
+      teachers,
+    });
 
   } catch (error) {
     console.error("Form data yuklashda xatolik:", error);

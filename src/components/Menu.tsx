@@ -221,12 +221,6 @@ const menuItems = [
         href: "/schools",
         visible: ["admin"],
       },
-      {
-        icon: "/logout.png",
-        label: "Logout",
-        href: "/logout",
-        visible: ["admin", "accountant", "teacher", "student", "parent"],
-      },
     ],
   },
 ];
