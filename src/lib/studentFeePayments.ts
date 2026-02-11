@@ -62,6 +62,12 @@ export const applyStudentFeePayment = async (
         reference: reference ?? null,
         clientRequestId: clientRequestId ?? null,
         createdFromOffline: createdFromOffline ?? false,
+        allocations: {
+          create: {
+            studentFeeId,
+            amount: amountMinor,
+          },
+        },
       },
     }),
     prisma.studentFee.update({

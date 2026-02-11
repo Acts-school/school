@@ -429,6 +429,27 @@ export const studentFeePaymentSchema = z.object({
 
 export type StudentFeePaymentSchema = z.infer<typeof studentFeePaymentSchema>;
 
+export const multiStudentFeePaymentSchema = z.object({
+  studentId: z.string().min(1, { message: "Student is required!" }),
+  method: z.enum(["CASH", "BANK_TRANSFER", "POS", "ONLINE", "MPESA"], {
+    message: "Payment method is required!",
+  }),
+  reference: z.string().optional(),
+  clientRequestId: z.string().min(1).optional(),
+  allocations: z
+    .array(
+      z.object({
+        studentFeeId: z.string().min(1, { message: "Student fee is required!" }),
+        amount: z.coerce.number().min(1, { message: "Amount is required!" }),
+      }),
+    )
+    .min(1, { message: "At least one allocation is required!" }),
+});
+
+export type MultiStudentFeePaymentSchema = z.infer<
+  typeof multiStudentFeePaymentSchema
+>;
+
 export const studentCompetencyBatchSchema = z.object({
   term: z.enum(["TERM1", "TERM2", "TERM3"], {
     message: "Term is required!",

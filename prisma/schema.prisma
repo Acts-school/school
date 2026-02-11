@@ -814,10 +814,11 @@ model StudentFee {
   sourceStructureId Int?
   sourceStructure   ClassFeeStructure? @relation("StudentFeeSource", fields: [sourceStructureId], references: [id])
 
-  payments          Payment[]          @relation("StudentFeePayments")
-  mpesaTransactions MpesaTransaction[] @relation("StudentFeeMpesaTransactions")
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
+  payments          Payment[]                    @relation("StudentFeePayments")
+  mpesaTransactions MpesaTransaction[]           @relation("StudentFeeMpesaTransactions")
+  allocations       StudentFeePaymentAllocation[]
+  createdAt         DateTime                     @default(now())
+  updatedAt         DateTime                     @updatedAt
 
   @@index([studentId, academicYear, term])
 }
@@ -847,8 +848,23 @@ model Payment {
 
   mpesaTransaction MpesaTransaction? @relation("PaymentMpesaTransaction")
 
-  clientRequestId   String?  @unique
-  createdFromOffline Boolean @default(false)
+  allocations       StudentFeePaymentAllocation[]
+
+  clientRequestId    String?  @unique
+  createdFromOffline Boolean  @default(false)
+}
+
+model StudentFeePaymentAllocation {
+  id           Int        @id @default(autoincrement())
+  paymentId    Int
+  payment      Payment    @relation(fields: [paymentId], references: [id])
+  studentFeeId String
+  studentFee   StudentFee @relation(fields: [studentFeeId], references: [id])
+  amount       Int        // minor units
+  createdAt    DateTime   @default(now())
+
+  @@index([paymentId])
+  @@index([studentFeeId])
 }
 
 model MpesaTransaction {
