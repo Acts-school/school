@@ -51,6 +51,7 @@ export default async function MultiReceiptPrintPage({ params }: PageProps) {
           studentFee: {
             select: {
               id: true,
+              studentId: true,
               amountDue: true,
               amountPaid: true,
               term: true,
@@ -88,13 +89,31 @@ export default async function MultiReceiptPrintPage({ params }: PageProps) {
 
   const academicYear =
     firstFee.academicYear ?? settings?.currentAcademicYear ?? null;
-  const termLabel = formatTermLabel(firstFee.term ?? settings?.currentTerm ?? null);
+  const termForContext = firstFee.term ?? settings?.currentTerm ?? null;
+  const termLabel = formatTermLabel(termForContext);
 
   const student = firstFee.student;
 
-  const totalAllocatedMinor = payment.allocations.reduce((acc, allocation) => {
-    return acc + allocation.amount;
-  }, 0);
+  let outstandingMinor = 0;
+
+  if (academicYear !== null && termForContext) {
+    const termFees = await prisma.studentFee.findMany({
+      where: {
+        studentId: firstFee.studentId,
+        academicYear,
+        term: termForContext,
+      },
+      select: {
+        amountDue: true,
+        amountPaid: true,
+      },
+    });
+
+    outstandingMinor = termFees.reduce((acc, fee) => {
+      const remaining = fee.amountDue - fee.amountPaid;
+      return acc + (remaining > 0 ? remaining : 0);
+    }, 0);
+  }
 
   const items = payment.allocations.map((allocation) => {
     const fee = allocation.studentFee;
@@ -218,8 +237,8 @@ export default async function MultiReceiptPrintPage({ params }: PageProps) {
             <span>{formatKES(payment.amount)}</span>
           </div>
           <div className="flex justify-between">
-            <span>Allocated</span>
-            <span>{formatKES(totalAllocatedMinor)}</span>
+            <span>Outstanding</span>
+            <span>{formatKES(outstandingMinor)}</span>
           </div>
         </div>
 

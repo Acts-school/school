@@ -23,6 +23,25 @@ type PaymentRow = {
   paidAt: Date;
 };
 
+type PaymentAllocationRow = {
+  id: number;
+  amount: number;
+  studentFee: {
+    id: string;
+    structure: { id: number; name: string } | null;
+    feeCategory: { id: number; name: string } | null;
+  } | null;
+};
+
+type PaymentHistoryRow = {
+  id: number;
+  amount: number;
+  method: string;
+  reference: string | null;
+  paidAt: Date;
+  allocations: PaymentAllocationRow[];
+};
+
 type StudentFeeRow = {
   id: string;
   term: TermLiteral | null;
@@ -58,9 +77,47 @@ type StudentFeeFindManyArgs = {
   orderBy: { createdAt: "asc" };
 };
 
+type PaymentFindManyArgs = {
+  where: {
+    allocations: {
+      some: {
+        studentFee: {
+          studentId: string;
+          academicYear?: number;
+          term?: TermLiteral;
+        };
+      };
+    };
+  };
+  select: {
+    id: true;
+    amount: true;
+    method: true;
+    reference: true;
+    paidAt: true;
+    allocations: {
+      select: {
+        id: true;
+        amount: true;
+        studentFee: {
+          select: {
+            id: true;
+            structure: { select: { id: true; name: true } };
+            feeCategory: { select: { id: true; name: true } };
+          };
+        };
+      };
+    };
+  };
+  orderBy: { paidAt: "asc" };
+};
+
 type FinancePrisma = {
   studentFee: {
     findMany: (args: StudentFeeFindManyArgs) => Promise<StudentFeeRow[]>;
+  };
+  payment: {
+    findMany: (args: PaymentFindManyArgs) => Promise<PaymentHistoryRow[]>;
   };
 };
 
@@ -171,6 +228,41 @@ export default async function StudentFeeDetailPage({
       },
     },
     orderBy: { createdAt: "asc" },
+  });
+
+  const payments = await financePrisma.payment.findMany({
+    where: {
+      allocations: {
+        some: {
+          studentFee: {
+            studentId,
+            academicYear: year,
+            ...(term ? { term } : {}),
+          },
+        },
+      },
+    },
+    select: {
+      id: true,
+      amount: true,
+      method: true,
+      reference: true,
+      paidAt: true,
+      allocations: {
+        select: {
+          id: true,
+          amount: true,
+          studentFee: {
+            select: {
+              id: true,
+              structure: { select: { id: true, name: true } },
+              feeCategory: { select: { id: true, name: true } },
+            },
+          },
+        },
+      },
+    },
+    orderBy: { paidAt: "asc" },
   });
 
   const termTotals = new Map<TermLiteral, TermTotals>();
@@ -339,7 +431,6 @@ export default async function StudentFeeDetailPage({
               <th className="py-2 pr-4">Paid</th>
               <th className="py-2 pr-4">Outstanding</th>
               <th className="py-2 pr-4">Status</th>
-              <th className="py-2 pr-4">Payments</th>
             </tr>
           </thead>
           <tbody>
@@ -356,45 +447,80 @@ export default async function StudentFeeDetailPage({
                   <td className="py-2 pr-4">{formatKES(fee.amountPaid)}</td>
                   <td className="py-2 pr-4">{formatKES(outstanding)}</td>
                   <td className="py-2 pr-4 text-xs uppercase">{fee.status}</td>
-                  <td className="py-2 pr-4">
-                    {fee.payments.length === 0 ? (
-                      <span className="text-xs text-gray-400">No payments</span>
-                    ) : (
-                      <div className="flex flex-col gap-1 text-xs">
-                        {fee.payments.map((p) => (
-                          <div key={p.id} className="flex flex-col">
-                            <span>
-                              {formatKES(p.amount)} · {p.method}
-                            </span>
-                            <span className="text-[11px] text-gray-500">
-                              {new Date(p.paidAt).toLocaleString()} {p.reference ? `· ${p.reference}` : ""}
-                              {" · "}
-                              <a
-                                href={`/finance/receipts/${p.id}/print`}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="text-[11px] text-blue-600 hover:underline"
-                              >
-                                Print receipt
-                              </a>
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </td>
                 </tr>
               );
             })}
             {fees.length === 0 && (
               <tr>
-                <td className="py-4 pr-4 text-sm text-gray-500" colSpan={8}>
+                <td className="py-4 pr-4 text-sm text-gray-500" colSpan={7}>
                   No fees found for this student in {year}.
                 </td>
               </tr>
             )}
           </tbody>
         </table>
+      </div>
+      <div className="mt-6 overflow-x-auto">
+        <h2 className="text-sm font-semibold mb-2">Payment history</h2>
+        {payments.length === 0 ? (
+          <p className="text-xs text-gray-500">No payments recorded for this student in {year}.</p>
+        ) : (
+          <table className="min-w-full text-sm">
+            <thead>
+              <tr className="text-left border-b">
+                <th className="py-2 pr-4">Date</th>
+                <th className="py-2 pr-4">Receipt</th>
+                <th className="py-2 pr-4">Method</th>
+                <th className="py-2 pr-4">Amount</th>
+                <th className="py-2 pr-4">Allocated to</th>
+                <th className="py-2 pr-4">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {payments.map((payment) => {
+                const allocationDescriptions = payment.allocations
+                  .map((allocation) => {
+                    if (!allocation.studentFee) {
+                      return null;
+                    }
+                    const label =
+                      allocation.studentFee.structure?.name ?? allocation.studentFee.feeCategory?.name ?? "Fee";
+                    return `${label} (${formatKES(allocation.amount)})`;
+                  })
+                  .filter((value): value is string => value !== null);
+
+                const allocatedTo = allocationDescriptions.join(" · ");
+
+                return (
+                  <tr key={payment.id} className="border-b last:border-b-0 align-top">
+                    <td className="py-2 pr-4 text-xs text-gray-600">
+                      {new Date(payment.paidAt).toLocaleString()}
+                    </td>
+                    <td className="py-2 pr-4 text-xs">
+                      {String(payment.id).padStart(6, "0")}
+                      {payment.reference ? ` · ${payment.reference}` : ""}
+                    </td>
+                    <td className="py-2 pr-4 text-xs">{payment.method}</td>
+                    <td className="py-2 pr-4">{formatKES(payment.amount)}</td>
+                    <td className="py-2 pr-4 text-xs text-gray-700">
+                      {allocatedTo || "-"}
+                    </td>
+                    <td className="py-2 pr-4 text-xs">
+                      <a
+                        href={`/finance/receipts/multi/${payment.id}/print`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[11px] text-blue-600 hover:underline"
+                      >
+                        Print receipt
+                      </a>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );
