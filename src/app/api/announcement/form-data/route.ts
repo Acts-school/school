@@ -1,7 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/pages/api/auth/[...nextauth]";
-import prisma from "@/lib/prisma";
 
 /**
  * @swagger
@@ -15,6 +12,11 @@ import prisma from "@/lib/prisma";
  */
 export async function GET(request: NextRequest) {
   try {
+    // Import inside function to prevent build-time execution
+    const { getServerSession } = await import("next-auth");
+    const authOptions = (await import("@/pages/api/auth/[...nextauth]")).authOptions;
+    const prisma = (await import("@/lib/prisma")).default;
+    
     const session = await getServerSession(authOptions);
     
     if (!session || !session.user) {
@@ -35,3 +37,6 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+// Force dynamic rendering to prevent build-time execution
+export const dynamic = 'force-dynamic';

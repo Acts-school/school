@@ -9,9 +9,9 @@ model StudentPhoneAlias {
   phone     String
   createdAt DateTime @default(now())
 
+  @@unique([studentId, phone])
   @@index([phone])
   @@index([studentId])
-  @@unique([studentId, phone])
 }
 
 /// Catalog of fee categories (e.g., Tuition, Activity, External Exams, Meals, Assessment Book, Computer Studies, Admission, Interview, Transport, Uniform)
@@ -198,6 +198,9 @@ model Student {
   results                 Result[]
   invoices                Invoice[]
   studentFees             StudentFee[]
+  lessonProgress          LessonProgress[]
+  assignmentSubmissions   AssignmentSubmission[]
+  examAttempts            ExamAttempt[]
   birthday                DateTime?
   StudentCompetencyRecord StudentCompetencyRecord[]
   StudentSloRecord        StudentSloRecord[]
@@ -247,27 +250,27 @@ model ImageAsset {
 }
 
 model Parent {
-  id        String    @id @default(uuid())
-  username  String    @unique
-  password  String
-  name      String
-  surname   String
-  email     String?   @unique
-  phone     String    @unique
-  address   String?
-  createdAt DateTime  @default(now())
-  students  Student[]
+  id           String          @id @default(uuid())
+  username     String          @unique
+  password     String
+  name         String
+  surname      String
+  email        String?         @unique
+  phone        String          @unique
+  address      String?
+  createdAt    DateTime        @default(now())
+  students     Student[]
   studentLinks StudentParent[]
-  schoolId  Int?
-  school    School?   @relation(fields: [schoolId], references: [id])
+  schoolId     Int?
+  school       School?         @relation(fields: [schoolId], references: [id])
 }
 
 model StudentParent {
-  id           String   @id @default(uuid())
+  id           String  @id @default(uuid())
   studentId    String
   parentId     String
   relationship String?
-  isPrimary    Boolean  @default(false)
+  isPrimary    Boolean @default(false)
 
   student Student @relation(fields: [studentId], references: [id])
   parent  Parent  @relation(fields: [parentId], references: [id])
@@ -346,6 +349,7 @@ model Class {
 
   // CBC: optional pathway for senior secondary classes
   pathway EducationPathway?
+  Unit    Unit[]
 
   @@unique([schoolId, name])
 }
@@ -355,13 +359,36 @@ model Subject {
   name     String    @unique
   teachers Teacher[]
   lessons  Lesson[]
+  units    Unit[]
+  questions Question[]
+}
+
+// --- COURSE MANAGEMENT ---
+
+model Unit {
+  id          Int     @id @default(autoincrement())
+  title       String
+  description String?
+
+  subjectId Int
+  subject   Subject @relation(fields: [subjectId], references: [id])
+
+  classId Int?
+  class   Class? @relation(fields: [classId], references: [id])
+
+  order   Int      @default(0)
+  lessons Lesson[]
+  messageThreads MessageThread[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // CBC: curriculum hierarchy (learning areas → strands → sub-strands → SLOs)
 model LearningArea {
-  id         Int             @id @default(autoincrement())
+  id         Int            @id @default(autoincrement())
   name       String
-  code       String?         @unique
+  code       String?        @unique
   stage      EducationStage
   gradeLevel Int
 
@@ -400,7 +427,7 @@ model SpecificLearningOutcome {
   code        String?
   description String
 
-  StudentSloRecord StudentSloRecord[]
+  StudentSloRecord    StudentSloRecord[]
   LearningObservation LearningObservation[]
 }
 
@@ -437,17 +464,17 @@ model Rubric {
   gradeLevel  Int
   active      Boolean        @default(true)
 
-  criteria RubricCriterion[]
+  criteria            RubricCriterion[]
   LearningObservation LearningObservation[]
 }
 
 model RubricCriterion {
-  id        Int             @id @default(autoincrement())
-  rubricId  Int
-  rubric    Rubric          @relation(fields: [rubricId], references: [id])
+  id       Int    @id @default(autoincrement())
+  rubricId Int
+  rubric   Rubric @relation(fields: [rubricId], references: [id])
 
-  level      SloAchievementLevel
-  descriptor String
+  level               SloAchievementLevel
+  descriptor          String
   LearningObservation LearningObservation[]
 }
 
@@ -458,18 +485,63 @@ model Lesson {
   startTime DateTime
   endTime   DateTime
 
-  subjectId               Int
-  subject                 Subject                   @relation(fields: [subjectId], references: [id])
-  classId                 Int
-  class                   Class                     @relation(fields: [classId], references: [id])
-  teacherId               String
-  teacher                 Teacher                   @relation(fields: [teacherId], references: [id])
+  subjectId Int
+  subject   Subject @relation(fields: [subjectId], references: [id])
+  classId   Int
+  class     Class   @relation(fields: [classId], references: [id])
+  teacherId String
+  teacher   Teacher @relation(fields: [teacherId], references: [id])
+
+  unitId Int?
+  unit   Unit? @relation(fields: [unitId], references: [id])
+  order  Int   @default(0)
+
   exams                   Exam[]
   assignments             Assignment[]
   attendances             Attendance[]
   StudentCompetencyRecord StudentCompetencyRecord[]
   StudentSloRecord        StudentSloRecord[]
   LearningObservation     LearningObservation[]
+
+  materials LessonMaterial[]
+  progress  LessonProgress[]
+}
+
+// --- CONTENT DELIVERY & PROGRESS ---
+
+enum MaterialType {
+  VIDEO
+  PDF
+  DOCUMENT
+  TEXT
+  LINK
+}
+
+model LessonMaterial {
+  id      Int          @id @default(autoincrement())
+  title   String
+  type    MaterialType
+  url     String?
+  content String?
+
+  lessonId Int
+  lesson   Lesson @relation(fields: [lessonId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+model LessonProgress {
+  id        Int     @id @default(autoincrement())
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id])
+
+  lessonId Int
+  lesson   Lesson @relation(fields: [lessonId], references: [id])
+
+  completed   Boolean   @default(false)
+  completedAt DateTime?
+
+  @@unique([studentId, lessonId])
 }
 
 model Exam {
@@ -493,6 +565,10 @@ model Exam {
   StudentCompetencyRecord StudentCompetencyRecord[]
   StudentSloRecord        StudentSloRecord[]
   LearningObservation     LearningObservation[]
+
+  durationMinutes Int?
+  questions       ExamQuestion[]
+  attempts        ExamAttempt[]
 }
 
 model Assignment {
@@ -501,11 +577,13 @@ model Assignment {
   startDate DateTime
   dueDate   DateTime
 
-  lessonId Int
-  lesson   Lesson   @relation(fields: [lessonId], references: [id])
-  results  Result[]
-  StudentSloRecord StudentSloRecord[]
+  lessonId            Int
+  lesson              Lesson                @relation(fields: [lessonId], references: [id])
+  results             Result[]
+  StudentSloRecord    StudentSloRecord[]
   LearningObservation LearningObservation[]
+
+  submissions AssignmentSubmission[]
 
   // CBC: classify assessment type
   kind AssessmentKind @default(FORMATIVE)
@@ -518,6 +596,32 @@ model Assignment {
 
   clientRequestId    String? @unique
   createdFromOffline Boolean @default(false)
+}
+
+enum SubmissionStatus {
+  SUBMITTED
+  GRADED
+  RETURNED
+  LATE
+}
+
+model AssignmentSubmission {
+  id Int @id @default(autoincrement())
+
+  assignmentId Int
+  assignment   Assignment @relation(fields: [assignmentId], references: [id])
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id])
+
+  fileUrl     String?
+  textContent String?
+
+  status      SubmissionStatus @default(SUBMITTED)
+  submittedAt DateTime         @default(now())
+
+  resultId Int?    @unique
+  result   Result? @relation(fields: [resultId], references: [id])
 }
 
 // CBC: assessment classification
@@ -569,67 +673,67 @@ model StudentCompetencyRecord {
 
   createdAt DateTime @default(now())
 
-  @@index([studentId, academicYear, term])
   @@unique([studentId, competency, term, academicYear])
+  @@index([studentId, academicYear, term])
 }
 
 // CBC: per-student SLO (specific learning outcome) records over time
 model StudentSloRecord {
-  id           Int                  @id @default(autoincrement())
+  id Int @id @default(autoincrement())
 
-  studentId    String
-  student      Student              @relation(fields: [studentId], references: [id])
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id])
 
-  sloId        Int
-  slo          SpecificLearningOutcome @relation(fields: [sloId], references: [id])
+  sloId Int
+  slo   SpecificLearningOutcome @relation(fields: [sloId], references: [id])
 
   level        SloAchievementLevel
   term         Term
   academicYear Int
   comment      String?
 
-  teacherId    String?
-  teacher      Teacher?             @relation(fields: [teacherId], references: [id])
+  teacherId String?
+  teacher   Teacher? @relation(fields: [teacherId], references: [id])
 
   examId       Int?
-  exam         Exam?                @relation(fields: [examId], references: [id])
+  exam         Exam?       @relation(fields: [examId], references: [id])
   assignmentId Int?
-  assignment   Assignment?          @relation(fields: [assignmentId], references: [id])
+  assignment   Assignment? @relation(fields: [assignmentId], references: [id])
   lessonId     Int?
-  lesson       Lesson?              @relation(fields: [lessonId], references: [id])
+  lesson       Lesson?     @relation(fields: [lessonId], references: [id])
 
   createdAt DateTime @default(now())
 
+  @@unique([studentId, sloId, term, academicYear])
   @@index([studentId, academicYear, term])
   @@index([sloId, academicYear, term])
-  @@unique([studentId, sloId, term, academicYear])
 }
 
 model LearningObservation {
-  id        Int      @id @default(autoincrement())
+  id Int @id @default(autoincrement())
 
   studentId String
-  student   Student  @relation(fields: [studentId], references: [id])
+  student   Student @relation(fields: [studentId], references: [id])
 
-  sloId     Int?
-  slo       SpecificLearningOutcome? @relation(fields: [sloId], references: [id])
+  sloId Int?
+  slo   SpecificLearningOutcome? @relation(fields: [sloId], references: [id])
 
   competency CbcCompetency?
 
-  lessonId  Int?
-  lesson    Lesson?   @relation(fields: [lessonId], references: [id])
+  lessonId Int?
+  lesson   Lesson? @relation(fields: [lessonId], references: [id])
 
   assignmentId Int?
   assignment   Assignment? @relation(fields: [assignmentId], references: [id])
 
-  examId    Int?
-  exam      Exam?     @relation(fields: [examId], references: [id])
+  examId Int?
+  exam   Exam? @relation(fields: [examId], references: [id])
 
   teacherId String
-  teacher   Teacher  @relation(fields: [teacherId], references: [id])
+  teacher   Teacher @relation(fields: [teacherId], references: [id])
 
-  rubricId  Int?
-  rubric    Rubric? @relation(fields: [rubricId], references: [id])
+  rubricId Int?
+  rubric   Rubric? @relation(fields: [rubricId], references: [id])
 
   rubricCriterionId Int?
   rubricCriterion   RubricCriterion? @relation(fields: [rubricCriterionId], references: [id])
@@ -651,8 +755,11 @@ model Result {
   studentId    String
   student      Student     @relation(fields: [studentId], references: [id])
 
-  clientRequestId    String?  @unique
-  createdFromOffline Boolean  @default(false)
+  assignmentSubmission AssignmentSubmission?
+  examAttempt          ExamAttempt?
+
+  clientRequestId    String? @unique
+  createdFromOffline Boolean @default(false)
 }
 
 model Attendance {
@@ -665,7 +772,7 @@ model Attendance {
   lessonId  Int
   lesson    Lesson  @relation(fields: [lessonId], references: [id])
 
-  clientRequestId   String? @unique
+  clientRequestId    String? @unique
   createdFromOffline Boolean @default(false)
 }
 
@@ -699,6 +806,9 @@ model MessageThread {
   // Optional school scoping so threads can be associated with a school when applicable
   schoolId Int?
   school   School? @relation(fields: [schoolId], references: [id])
+
+  unitId   Int?
+  unit     Unit?   @relation(fields: [unitId], references: [id])
 
   participants MessageParticipant[]
   messages     Message[]
@@ -814,10 +924,11 @@ model StudentFee {
   sourceStructureId Int?
   sourceStructure   ClassFeeStructure? @relation("StudentFeeSource", fields: [sourceStructureId], references: [id])
 
-  payments          Payment[]          @relation("StudentFeePayments")
-  mpesaTransactions MpesaTransaction[] @relation("StudentFeeMpesaTransactions")
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
+  payments          Payment[]                     @relation("StudentFeePayments")
+  mpesaTransactions MpesaTransaction[]            @relation("StudentFeeMpesaTransactions")
+  allocations       StudentFeePaymentAllocation[]
+  createdAt         DateTime                      @default(now())
+  updatedAt         DateTime                      @updatedAt
 
   @@index([studentId, academicYear, term])
 }
@@ -847,8 +958,23 @@ model Payment {
 
   mpesaTransaction MpesaTransaction? @relation("PaymentMpesaTransaction")
 
-  clientRequestId   String?  @unique
+  allocations StudentFeePaymentAllocation[]
+
+  clientRequestId    String? @unique
   createdFromOffline Boolean @default(false)
+}
+
+model StudentFeePaymentAllocation {
+  id           Int        @id @default(autoincrement())
+  paymentId    Int
+  payment      Payment    @relation(fields: [paymentId], references: [id])
+  studentFeeId String
+  studentFee   StudentFee @relation(fields: [studentFeeId], references: [id])
+  amount       Int // minor units
+  createdAt    DateTime   @default(now())
+
+  @@index([paymentId])
+  @@index([studentFeeId])
 }
 
 model MpesaTransaction {
@@ -982,6 +1108,92 @@ model StaffPayroll {
   paymentReference String?
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
+}
+
+// --- ASSESSMENTS (QUIZZES / EXAMS) ---
+
+enum QuestionType {
+  MULTIPLE_CHOICE
+  TRUE_FALSE
+  SHORT_ANSWER
+}
+
+model Question {
+  id            Int          @id @default(autoincrement())
+  subjectId     Int
+  subject       Subject      @relation(fields: [subjectId], references: [id])
+  type          QuestionType
+  text          String
+  points        Int          @default(1)
+  
+  choices       QuestionChoice[]
+  examQuestions ExamQuestion[]
+  
+  // Back relations
+  studentAnswers StudentAnswer[]
+  
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+}
+
+model QuestionChoice {
+  id         Int      @id @default(autoincrement())
+  questionId Int
+  question   Question @relation(fields: [questionId], references: [id])
+  text       String
+  isCorrect  Boolean  @default(false)
+
+  // Back relations
+  studentAnswers StudentAnswer[]
+}
+
+model ExamQuestion {
+  id         Int      @id @default(autoincrement())
+  examId     Int
+  exam       Exam     @relation(fields: [examId], references: [id])
+  questionId Int
+  question   Question @relation(fields: [questionId], references: [id])
+  order      Int      @default(0)
+  
+  @@unique([examId, questionId])
+}
+
+model ExamAttempt {
+  id          Int       @id @default(autoincrement())
+  examId      Int
+  exam        Exam      @relation(fields: [examId], references: [id])
+  studentId   String
+  student     Student   @relation(fields: [studentId], references: [id])
+  
+  startTime   DateTime  @default(now())
+  endTime     DateTime?
+  status      AttemptStatus @default(IN_PROGRESS)
+  
+  answers     StudentAnswer[]
+  
+  // Links to the final auto-graded result
+  resultId    Int?      @unique
+  result      Result?   @relation(fields: [resultId], references: [id])
+}
+
+enum AttemptStatus {
+  IN_PROGRESS
+  COMPLETED
+}
+
+model StudentAnswer {
+  id           Int      @id @default(autoincrement())
+  attemptId    Int
+  attempt      ExamAttempt @relation(fields: [attemptId], references: [id])
+  questionId   Int
+  question     Question    @relation(fields: [questionId], references: [id])
+  
+  choiceId     Int?        // For MCQ / TF
+  choice       QuestionChoice? @relation(fields: [choiceId], references: [id])
+  textResponse String?     // For Short Answer
+  
+  isCorrect    Boolean? 
+  pointsAwarded Int?
 }
 
 enum InvoiceStatus {

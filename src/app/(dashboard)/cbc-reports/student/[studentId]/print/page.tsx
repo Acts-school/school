@@ -1,9 +1,3 @@
-import { getServerSession } from "next-auth";
-
-import { authOptions } from "@/pages/api/auth/[...nextauth]";
-import prisma from "@/lib/prisma";
-import { getSchoolSettingsDefaults } from "@/lib/schoolSettings";
-import { getCbcTermReport, getTermAttendanceSummary } from "@/lib/cbcReports";
 import { CbcTermReportPrint } from "@/components/cbc/CbcTermReportPrint";
 import { PrintReceiptToolbar } from "@/components/finance/PrintReceiptToolbar";
 
@@ -23,6 +17,21 @@ const toSingleValue = (value: string | string[] | undefined): string | undefined
 };
 
 export default async function CbcReportPrintPage({ params }: PageProps) {
+  // Import auth, Prisma, and data helpers at runtime to avoid touching DB/env at build time
+  const [
+    { getServerSession },
+    { authOptions },
+    { default: prisma },
+    { getSchoolSettingsDefaults },
+    { getCbcTermReport, getTermAttendanceSummary },
+  ] = await Promise.all([
+    import("next-auth"),
+    import("@/pages/api/auth/[...nextauth]"),
+    import("@/lib/prisma"),
+    import("@/lib/schoolSettings"),
+    import("@/lib/cbcReports"),
+  ]);
+
   const session = await getServerSession(authOptions);
 
   if (!session?.user) {
@@ -129,3 +138,5 @@ export default async function CbcReportPrintPage({ params }: PageProps) {
     </>
   );
 }
+
+export const dynamic = "force-dynamic";

@@ -1,6 +1,3 @@
-import prisma from "@/lib/prisma";
-import { ensurePermission, getCurrentSchoolContext } from "@/lib/authz";
-import { getSchoolSettingsDefaults } from "@/lib/schoolSettings";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import Link from "next/link";
 
@@ -95,8 +92,6 @@ type FinancePrisma = {
   };
 };
 
-const financePrisma = prisma as unknown as FinancePrisma;
-
 const AGE_BUCKETS: AgeBucketMeta[] = [
   { id: "not_due_yet", label: "Not yet due", order: 0 },
   { id: "d0_30", label: "0–30 days", order: 1 },
@@ -125,6 +120,18 @@ const toSingleValue = (
 };
 
 export default async function AgingPage({ searchParams }: AgingPageProps) {
+  const [
+    { default: prisma },
+    { ensurePermission, getCurrentSchoolContext },
+    { getSchoolSettingsDefaults },
+  ] = await Promise.all([
+    import("@/lib/prisma"),
+    import("@/lib/authz"),
+    import("@/lib/schoolSettings"),
+  ]);
+
+  const financePrisma = prisma as unknown as FinancePrisma;
+
   await ensurePermission("fees.read");
 
   const resolvedSearchParams = searchParams ? await searchParams : {};
@@ -395,3 +402,5 @@ export default async function AgingPage({ searchParams }: AgingPageProps) {
     </div>
   );
 }
+
+export const dynamic = "force-dynamic";

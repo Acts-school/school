@@ -7,7 +7,17 @@ const clientSchema = z.object({
 
 export type ClientEnv = z.infer<typeof clientSchema>;
 
-export const envClient: ClientEnv = clientSchema.parse({
-  NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
-  NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
-});
+let cachedEnvClient: ClientEnv | null = null;
+
+export const getEnvClient = (): ClientEnv => {
+  if (cachedEnvClient) {
+    return cachedEnvClient;
+  }
+
+  cachedEnvClient = clientSchema.parse({
+    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+    NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
+  });
+
+  return cachedEnvClient;
+};

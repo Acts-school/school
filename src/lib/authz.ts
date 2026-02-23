@@ -1,7 +1,4 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/pages/api/auth/[...nextauth]";
 import { cookies } from "next/headers";
-import prisma from "@/lib/prisma";
 import { roleToPermissions, type Permission, type PermissionSet, type BaseRole } from "@/lib/rbac";
 
 type SchoolUserRow = {
@@ -18,8 +15,6 @@ type SchoolPrisma = {
   };
 };
 
-const schoolPrisma = prisma as unknown as SchoolPrisma;
-
 export type AuthContext = {
   userId: string;
   role: BaseRole;
@@ -27,6 +22,11 @@ export type AuthContext = {
 };
 
 export const getAuthContext = async (): Promise<AuthContext | null> => {
+  const [{ getServerSession }, { authOptions }] = await Promise.all([
+    import("next-auth"),
+    import("@/pages/api/auth/[...nextauth]"),
+  ]);
+
   const session = await getServerSession(authOptions);
   const role = session?.user?.role;
   const id = session?.user?.id;
@@ -41,6 +41,8 @@ export type SchoolContext = {
 };
 
 export const getCurrentSchoolContext = async (): Promise<SchoolContext> => {
+  const prisma = (await import("@/lib/prisma")).default;
+  const schoolPrisma = prisma as unknown as SchoolPrisma;
   const ctx = await getAuthContext();
   if (!ctx) {
     return { schoolId: null, isSuperAdmin: false };

@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
-import { ensurePermission, getAuthContext } from "@/lib/authz";
 
 // Narrowed Prisma facade for recipient lookups
 
@@ -131,8 +129,6 @@ type RecipientsPrismaClient = {
   };
 };
 
-const recipientsPrisma = prisma as unknown as RecipientsPrismaClient;
-
 export type RecipientKind = "student" | "teacher" | "parent" | "admin" | "accountant";
 
 export type RecipientDto = {
@@ -143,10 +139,17 @@ export type RecipientDto = {
 };
 
 export const GET = async (req: NextRequest): Promise<NextResponse> => {
+  // Import inside function to prevent build-time execution
+  const prisma = (await import('@/lib/prisma')).default;
+  const recipientsPrisma = prisma as unknown as RecipientsPrismaClient;
+  const { getCurrentSchoolContext, ensurePermission } = await import('@/lib/authz');
+  const { getServerSession } = await import('next-auth');
+  const authOptions = (await import('@/pages/api/auth/[...nextauth]')).authOptions;
+
   try {
     await ensurePermission("messages.send");
-    const auth = await getAuthContext();
-    if (!auth) {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -252,3 +255,6 @@ export const GET = async (req: NextRequest): Promise<NextResponse> => {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 };
+
+// Force dynamic rendering to prevent build-time execution
+export const dynamic = 'force-dynamic';

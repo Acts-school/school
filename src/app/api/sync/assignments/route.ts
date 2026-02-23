@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { AssessmentKind, CbcCompetency, Prisma } from "@prisma/client";
 
-import prisma from "@/lib/prisma";
-import { ensurePermission, getCurrentSchoolContext } from "@/lib/authz";
-
 type AssignmentSyncOpType = "CREATE_ASSIGNMENT" | "UPDATE_ASSIGNMENT";
 
 type AssignmentSyncStatus = "succeeded" | "failed";
@@ -66,6 +63,10 @@ function parseDate(value: string): Date | null {
 export async function POST(
   req: NextRequest,
 ): Promise<NextResponse<AssignmentSyncResponse | { error: string }>> {
+  // Import inside function to prevent build-time execution
+  const prisma = (await import('@/lib/prisma')).default;
+  const { getCurrentSchoolContext, ensurePermission } = await import('@/lib/authz');
+  
   try {
     await ensurePermission("assignments.write");
     const { schoolId } = await getCurrentSchoolContext();
@@ -123,6 +124,8 @@ async function handleCreateAssignment(
   payload: CreateAssignmentOperationPayload,
   schoolId: number | null,
 ): Promise<OperationResult> {
+  const prisma = (await import('@/lib/prisma')).default;
+  
   const existing = await prisma.assignment.findUnique({
     where: { clientRequestId: payload.clientRequestId } as unknown as Prisma.AssignmentWhereUniqueInput,
   });
@@ -199,6 +202,8 @@ async function handleUpdateAssignment(
   payload: UpdateAssignmentOperationPayload,
   schoolId: number | null,
 ): Promise<OperationResult> {
+  const prisma = (await import('@/lib/prisma')).default;
+  
   const start = parseDate(payload.startDate);
   const due = parseDate(payload.dueDate);
 
@@ -269,3 +274,6 @@ async function handleUpdateAssignment(
 
   return { ok: true };
 }
+
+// Force dynamic rendering to prevent build-time execution
+export const dynamic = 'force-dynamic';

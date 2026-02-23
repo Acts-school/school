@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/pages/api/auth/[...nextauth]';
-import { getCurrentSchoolContext } from '@/lib/authz';
 
 export async function GET(req: NextRequest) {
+    // Import inside function to prevent build-time execution
+    const { getServerSession } = await import('next-auth');
+    const authOptions = (await import('@/pages/api/auth/[...nextauth]')).authOptions;
+    const prisma = (await import('@/lib/prisma')).default;
+    const { getCurrentSchoolContext } = await import('@/lib/authz');
+
   try {
     const session = await getServerSession(authOptions);
     
@@ -65,6 +67,12 @@ export async function GET(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  // Import inside function to prevent build-time execution
+  const { getServerSession } = await import('next-auth');
+  const authOptions = (await import('@/pages/api/auth/[...nextauth]')).authOptions;
+  const prisma = (await import('@/lib/prisma')).default;
+  const { getCurrentSchoolContext } = await import('@/lib/authz');
+  
   try {
     const session = await getServerSession(authOptions);
     
@@ -110,3 +118,6 @@ export async function DELETE(req: NextRequest) {
     );
   }
 }
+
+// Force dynamic rendering to prevent build-time execution
+export const dynamic = 'force-dynamic';

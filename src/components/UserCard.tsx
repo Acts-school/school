@@ -1,5 +1,3 @@
-import prisma from "@/lib/prisma";
-import { getCurrentSchoolContext } from "@/lib/authz";
 import Image from "next/image";
 
 type UserCardType = "admin" | "teacher" | "student" | "parent";
@@ -9,6 +7,8 @@ const UserCard = async ({
 }: {
   type: UserCardType;
 }) => {
+  const prisma = (await import("@/lib/prisma")).default;
+  const { getCurrentSchoolContext } = await import("@/lib/authz");
   const { schoolId, isSuperAdmin } = await getCurrentSchoolContext();
 
   let data = 0;

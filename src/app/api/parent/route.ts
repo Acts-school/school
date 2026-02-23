@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import prisma from "@/lib/prisma";
-import { ensurePermission } from "@/lib/authz";
-
 export async function DELETE(request: NextRequest): Promise<NextResponse> {
+    // Import inside function to prevent build-time execution
+    const prisma = (await import('@/lib/prisma')).default;
+    const { getCurrentSchoolContext, ensurePermission } = await import('@/lib/authz');
+
   try {
     await ensurePermission("parents.write");
 
@@ -24,3 +25,6 @@ export async function DELETE(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
+
+// Force dynamic rendering to prevent build-time execution
+export const dynamic = 'force-dynamic';

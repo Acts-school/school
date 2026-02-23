@@ -1,7 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/pages/api/auth/[...nextauth]";
-import prisma from "@/lib/prisma";
 
 /**
  * @swagger
@@ -14,6 +11,11 @@ import prisma from "@/lib/prisma";
  *         description: Form ma'lumotlari muvaffaqiyatli qaytarildi
  */
 export async function GET(request: NextRequest) {
+    // Import inside function to prevent build-time execution
+    const { getServerSession } = await import('next-auth');
+    const authOptions = (await import('@/pages/api/auth/[...nextauth]')).authOptions;
+    const prisma = (await import('@/lib/prisma')).default;
+
   try {
     const session = await getServerSession(authOptions);
     
@@ -24,8 +26,23 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Default bo'sh ob'ekt qaytaramiz
-    return NextResponse.json({});
+    const [subjects, classes, teachers] = await Promise.all([
+      prisma.subject.findMany({
+        select: { id: true, name: true },
+      }),
+      prisma.class.findMany({
+        select: { id: true, name: true },
+      }),
+      prisma.teacher.findMany({
+        select: { id: true, name: true, surname: true },
+      }),
+    ]);
+
+    return NextResponse.json({
+      subjects,
+      classes,
+      teachers,
+    });
 
   } catch (error) {
     console.error("Form data yuklashda xatolik:", error);
@@ -35,3 +52,6 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+// Force dynamic rendering to prevent build-time execution
+export const dynamic = 'force-dynamic';

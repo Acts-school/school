@@ -1,9 +1,9 @@
 import Image from "next/image";
 import CountChart from "./CountChart";
-import prisma from "@/lib/prisma";
-import { getCurrentSchoolContext } from "@/lib/authz";
 
 const CountChartContainer = async () => {
+  const prisma = (await import("@/lib/prisma")).default;
+  const { getCurrentSchoolContext } = await import("@/lib/authz");
   const { schoolId, isSuperAdmin } = await getCurrentSchoolContext();
 
   let boys = 0;

@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -H 0.0.0.0 -p 3000",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write .",
@@ -15,7 +15,8 @@
     "test:watch": "vitest",
     "vercel-build": "prisma migrate deploy && prisma generate && next build",
     "seed:learning-areas": "ts-node --compiler-options \"{\\\"module\\\":\\\"CommonJS\\\"}\" prisma/seed-learning-areas.ts",
-    "seed:dev": "ts-node --compiler-options \"{\\\"module\\\":\\\"CommonJS\\\"}\" prisma/seed-dev.ts"
+    "seed:dev": "ts-node --compiler-options \"{\\\"module\\\":\\\"CommonJS\\\"}\" prisma/seed-dev.ts",
+    "prebuild": "npx prisma generate"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
@@ -25,12 +26,14 @@
     "@tanstack/react-query-devtools": "^5.90.2",
     "@types/react-big-calendar": "^1.8.9",
     "bcryptjs": "^3.0.2",
+    "exceljs": "^4.4.0",
     "lucide-react": "^0.555.0",
     "moment": "^2.30.1",
     "next": "^15.5.9",
     "next-auth": "^4.24.11",
     "next-cloudinary": "^6.13.0",
     "pg": "^8.16.3",
+    "playwright": "^1.48.0",
     "react": "^18",
     "react-big-calendar": "^1.13.2",
     "react-calendar": "^5.0.0",
@@ -38,9 +41,7 @@
     "react-hook-form": "^7.52.2",
     "react-toastify": "^10.0.6",
     "recharts": "^2.12.7",
-    "zod": "^3.23.8",
-    "playwright": "^1.48.0",
-    "exceljs": "^4.4.0"
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/bcryptjs": "^3.0.0",

@@ -5,6 +5,7 @@ import Breadcrumbs from "@/components/Breadcrumbs";
 import Link from "next/link";
 import BulkClearanceReminderButton from "@/components/BulkClearanceReminderButton";
 import ClearanceStudentRowActions from "@/components/ClearanceStudentRowActions";
+import ClearanceSearchClient from "@/components/ClearanceSearchClient";
 
 const formatKES = (minor: number): string => `KES ${((minor ?? 0) / 100).toFixed(2)}`;
 
@@ -12,6 +13,8 @@ type ClearanceSearchParams = {
   year: string | undefined;
   gradeId: string | undefined;
   classId: string | undefined;
+  term: string | undefined;
+  search: string | undefined;
 };
 
 type ClearancePageProps = {
@@ -38,14 +41,24 @@ export default async function ClearancePage({ searchParams }: ClearancePageProps
     year: toSingleValue(resolvedSearchParams.year),
     gradeId: toSingleValue(resolvedSearchParams.gradeId),
     classId: toSingleValue(resolvedSearchParams.classId),
+    term: toSingleValue(resolvedSearchParams.term),
+    search: toSingleValue(resolvedSearchParams.search),
   };
-  const { academicYear: defaultYear } = await getSchoolSettingsDefaults();
+  const { academicYear: defaultYear, term: defaultTerm } = await getSchoolSettingsDefaults();
 
   const year = (() => {
     const raw = params.year;
     if (!raw) return defaultYear;
     const parsed = Number.parseInt(raw, 10);
     return Number.isNaN(parsed) ? defaultYear : parsed;
+  })();
+
+  const termFilter: TermLiteral | null = (() => {
+    const raw = params.term;
+    if (raw === "TERM1" || raw === "TERM2" || raw === "TERM3") {
+      return raw;
+    }
+    return defaultTerm;
   })();
 
   type StudentPick = {
@@ -73,6 +86,7 @@ export default async function ClearancePage({ searchParams }: ClearancePageProps
       student?: {
         gradeId?: number;
         classId?: number;
+        OR?: { name?: { contains: string; mode: "insensitive" }; surname?: { contains: string; mode: "insensitive" }; username?: { contains: string; mode: "insensitive" } }[];
       };
     };
     select: {
@@ -104,22 +118,41 @@ export default async function ClearancePage({ searchParams }: ClearancePageProps
 
   const where: StudentFeeFindManyArgs["where"] = {
     academicYear: year,
+    ...(termFilter ? { term: termFilter } : {}),
   };
 
   const gradeIdNumber = params.gradeId ? Number.parseInt(params.gradeId, 10) : undefined;
   const classIdNumber = params.classId ? Number.parseInt(params.classId, 10) : undefined;
+  const search = params.search;
 
   if (gradeIdNumber || classIdNumber) {
-    const studentFilter: { gradeId?: number; classId?: number } = {};
+    const studentFilter: { gradeId?: number; classId?: number; OR?: { name?: { contains: string; mode: "insensitive" }; surname?: { contains: string; mode: "insensitive" }; username?: { contains: string; mode: "insensitive" } }[] } = {};
     if (typeof gradeIdNumber === "number" && !Number.isNaN(gradeIdNumber)) {
       studentFilter.gradeId = gradeIdNumber;
     }
     if (typeof classIdNumber === "number" && !Number.isNaN(classIdNumber)) {
       studentFilter.classId = classIdNumber;
     }
-    if (Object.keys(studentFilter).length > 0) {
+    if (search && search.trim().length > 0) {
+      const value = search.trim();
+      studentFilter.OR = [
+        { name: { contains: value, mode: "insensitive" } },
+        { surname: { contains: value, mode: "insensitive" } },
+        { username: { contains: value, mode: "insensitive" } },
+      ];
+    }
+    if (Object.keys(studentFilter).length > 0 || studentFilter.OR) {
       where.student = studentFilter;
     }
+  } else if (search && search.trim().length > 0) {
+    const value = search.trim();
+    where.student = {
+      OR: [
+        { name: { contains: value, mode: "insensitive" } },
+        { surname: { contains: value, mode: "insensitive" } },
+        { username: { contains: value, mode: "insensitive" } },
+      ],
+    };
   }
 
   const classWhere =
@@ -234,6 +267,8 @@ export default async function ClearancePage({ searchParams }: ClearancePageProps
     if (merged.year) q.set("year", merged.year);
     if (merged.gradeId) q.set("gradeId", merged.gradeId);
     if (merged.classId) q.set("classId", merged.classId);
+     if (merged.term) q.set("term", merged.term);
+     if (merged.search) q.set("search", merged.search);
     return q.toString();
   };
 
@@ -250,6 +285,7 @@ export default async function ClearancePage({ searchParams }: ClearancePageProps
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Class / Grade Clearance</h1>
         <div className="flex flex-col md:flex-row gap-2 items-end">
+          <ClearanceSearchClient />
           <BulkClearanceReminderButton
             year={year}
             gradeId={params.gradeId}
@@ -272,6 +308,19 @@ export default async function ClearancePage({ searchParams }: ClearancePageProps
             defaultValue={String(year)}
             className="p-2 rounded-md ring-1 ring-gray-300 w-24"
           />
+        </div>
+        <div className="flex flex-col">
+          <label className="text-xs text-gray-500">Term</label>
+          <select
+            name="term"
+            defaultValue={params.term ?? ""}
+            className="p-2 rounded-md ring-1 ring-gray-300 w-28"
+          >
+            <option value="">All terms</option>
+            <option value="TERM1">TERM1</option>
+            <option value="TERM2">TERM2</option>
+            <option value="TERM3">TERM3</option>
+          </select>
         </div>
         <div className="flex flex-col">
           <label className="text-xs text-gray-500">Grade</label>
@@ -379,7 +428,7 @@ export default async function ClearancePage({ searchParams }: ClearancePageProps
                 })}
                 <td className="py-2 pr-4">{formatKES(a.totalOutstanding)}</td>
                 <td className="py-2 pr-4">
-                  <ClearanceStudentRowActions studentId={a.student.id} year={year} />
+                  <ClearanceStudentRowActions studentId={a.student.id} year={year} term={termFilter} />
                 </td>
               </tr>
             ))}
@@ -396,3 +445,6 @@ export default async function ClearancePage({ searchParams }: ClearancePageProps
     </div>
   );
 }
+
+// Force dynamic rendering to prevent build-time execution
+export const dynamic = 'force-dynamic';

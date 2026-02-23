@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 
-import prisma from "@/lib/prisma";
-import { ensurePermission, getCurrentSchoolContext } from "@/lib/authz";
-
 type AttendanceOpType = "CREATE_ATTENDANCE" | "UPDATE_ATTENDANCE";
 
 type AttendanceSyncResultStatus = "succeeded" | "failed";
@@ -53,6 +50,10 @@ function parseDate(value: string): Date | null {
 export async function POST(
   req: NextRequest,
 ): Promise<NextResponse<AttendanceSyncResponse | { error: string }>> {
+  // Import inside function to prevent build-time execution
+  const prisma = (await import('@/lib/prisma')).default;
+  const { getCurrentSchoolContext, ensurePermission } = await import('@/lib/authz');
+  
   try {
     await ensurePermission("attendance.write");
     const { schoolId } = await getCurrentSchoolContext();
@@ -123,6 +124,8 @@ async function handleCreateAttendance(
   payload: CreateAttendanceOperationPayload,
   schoolId: number | null,
 ): Promise<OperationResult> {
+  const prisma = (await import('@/lib/prisma')).default;
+  
   const { clientRequestId, date, present, studentId, lessonId } = payload;
 
   const existing = await prisma.attendance.findUnique({
@@ -194,6 +197,8 @@ async function handleUpdateAttendance(
   payload: UpdateAttendanceOperationPayload,
   schoolId: number | null,
 ): Promise<OperationResult> {
+  const prisma = (await import('@/lib/prisma')).default;
+  
   const { id, date, present, studentId, lessonId } = payload;
 
   const parsedDate = parseDate(date);
@@ -252,3 +257,6 @@ async function handleUpdateAttendance(
 
   return { ok: true };
 }
+
+// Force dynamic rendering to prevent build-time execution
+export const dynamic = 'force-dynamic';

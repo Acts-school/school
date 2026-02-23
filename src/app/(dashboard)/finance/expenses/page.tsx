@@ -6,6 +6,8 @@ import Breadcrumbs from "@/components/Breadcrumbs";
 
 const formatKES = (minor: number): string => `KES ${((minor ?? 0) / 100).toFixed(2)}`;
 
+export const dynamic = 'force-dynamic';
+
 export default async function ExpensesPage() {
   await ensurePermission("expenses.read");
   const { academicYear } = await getSchoolSettingsDefaults();

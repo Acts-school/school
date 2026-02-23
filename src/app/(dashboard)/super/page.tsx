@@ -89,6 +89,8 @@ type SuperAdminPrisma = {
 
 const superAdminPrisma = prisma as unknown as SuperAdminPrisma;
 
+export const dynamic = 'force-dynamic';
+
 const SuperAdminDashboard = async () => {
   const { isSuperAdmin } = await getCurrentSchoolContext();
 

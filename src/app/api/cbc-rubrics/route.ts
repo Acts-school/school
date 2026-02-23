@@ -1,8 +1,4 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-
-import prisma from "@/lib/prisma";
-import { authOptions } from "@/pages/api/auth/[...nextauth]";
 
 type RubricCriterionDto = {
   id: number;
@@ -20,6 +16,11 @@ type RubricDto = {
 };
 
 export const GET = async (): Promise<NextResponse<RubricDto[] | { error: string }>> => {
+  // Import inside function to prevent build-time execution
+  const { getServerSession } = await import('next-auth');
+  const authOptions = (await import('@/pages/api/auth/[...nextauth]')).authOptions;
+  const prisma = (await import('@/lib/prisma')).default;
+
   try {
     const session = await getServerSession(authOptions);
 
@@ -65,3 +66,6 @@ export const GET = async (): Promise<NextResponse<RubricDto[] | { error: string 
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 };
+
+// Force dynamic rendering to prevent build-time execution
+export const dynamic = 'force-dynamic';

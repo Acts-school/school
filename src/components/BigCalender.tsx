@@ -26,10 +26,14 @@ const BigCalendar = ({
       endAccessor="end"
       views={["work_week", "day"]}
       view={view}
-      style={{ height: "98%" }}
+      style={{ height: "100%", width: "100%" }}
       onView={handleOnChangeView}
-      min={new Date(2025, 1, 0, 8, 0, 0)}
-      max={new Date(2025, 1, 0, 17, 0, 0)}
+      // Show only the core school day: 10:00 AM - 9:00 PM
+      min={new Date(2025, 1, 1, 7, 0, 0)}
+      max={new Date(2025, 1, 1, 21, 0, 0)}
+      // Align rows to 1-hour blocks, split into two 30-min slots
+      step={30}
+      timeslots={2}
     />
   );
 };

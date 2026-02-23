@@ -1,9 +1,10 @@
-import prisma from "@/lib/prisma";
-import { ensurePermission } from "@/lib/authz";
-import { getSchoolSettingsDefaults } from "@/lib/schoolSettings";
-
 // GET /finance/clearance/export -> CSV
 export async function GET(request: Request): Promise<Response> {
+  // Import inside function to prevent build-time execution
+  const { ensurePermission } = await import("@/lib/authz");
+  const { getSchoolSettingsDefaults } = await import("@/lib/schoolSettings");
+  const prisma = (await import("@/lib/prisma")).default;
+  
   await ensurePermission("fees.read");
 
   type TermLiteral = "TERM1" | "TERM2" | "TERM3";
@@ -210,3 +211,6 @@ export async function GET(request: Request): Promise<Response> {
     },
   });
 }
+
+// Force dynamic rendering to prevent build-time execution
+export const dynamic = 'force-dynamic';

@@ -1,5 +1,3 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/pages/api/auth/[...nextauth]";
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
@@ -60,6 +58,10 @@ const schoolsPrisma = prisma as unknown as SchoolsPrisma;
 
 const addSchoolMembership = async (formData: FormData): Promise<void> => {
   "use server";
+  const [{ getServerSession }, { authOptions }] = await Promise.all([
+    import("next-auth"),
+    import("@/pages/api/auth/[...nextauth]"),
+  ]);
 
   const session = await getServerSession(authOptions);
   const role = session?.user?.role;
@@ -99,6 +101,10 @@ const addSchoolMembership = async (formData: FormData): Promise<void> => {
 
 const removeSchoolMembership = async (formData: FormData): Promise<void> => {
   "use server";
+  const [{ getServerSession }, { authOptions }] = await Promise.all([
+    import("next-auth"),
+    import("@/pages/api/auth/[...nextauth]"),
+  ]);
 
   const session = await getServerSession(authOptions);
   const role = session?.user?.role;
@@ -125,6 +131,11 @@ const removeSchoolMembership = async (formData: FormData): Promise<void> => {
 };
 
 export default async function SchoolsPage() {
+  const [{ getServerSession }, { authOptions }] = await Promise.all([
+    import("next-auth"),
+    import("@/pages/api/auth/[...nextauth]"),
+  ]);
+
   const session = await getServerSession(authOptions);
   const role = session?.user?.role;
   const userId = session?.user?.id;
@@ -299,3 +310,5 @@ export default async function SchoolsPage() {
     </div>
   );
 }
+
+export const dynamic = "force-dynamic";

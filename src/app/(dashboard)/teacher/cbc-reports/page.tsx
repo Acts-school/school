@@ -5,7 +5,19 @@ import prisma from "@/lib/prisma";
 import { getSchoolSettingsDefaults } from "@/lib/schoolSettings";
 
 const TeacherCbcReportsPage = async () => {
-  const session = await getServerSession(authOptions);
+  const [
+    { getServerSession: getServerSessionDynamic },
+    { authOptions: authOptionsDynamic },
+    { default: prismaDynamic },
+    { getSchoolSettingsDefaults: getSchoolSettingsDefaultsDynamic },
+  ] = await Promise.all([
+    import("next-auth"),
+    import("@/pages/api/auth/[...nextauth]"),
+    import("@/lib/prisma"),
+    import("@/lib/schoolSettings"),
+  ]);
+
+  const session = await getServerSessionDynamic(authOptionsDynamic);
   const role = session?.user?.role;
   const teacherId = session?.user?.id;
 
@@ -19,9 +31,9 @@ const TeacherCbcReportsPage = async () => {
     );
   }
 
-  const { academicYear, term } = await getSchoolSettingsDefaults();
+  const { academicYear, term } = await getSchoolSettingsDefaultsDynamic();
 
-  const classes = await prisma.class.findMany({
+  const classes = await prismaDynamic.class.findMany({
     where: {
       supervisorId: teacherId,
     },
@@ -104,3 +116,4 @@ const TeacherCbcReportsPage = async () => {
 };
 
 export default TeacherCbcReportsPage;
+export const dynamic = "force-dynamic";

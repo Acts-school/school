@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/pages/api/auth/[...nextauth]";
-import prisma from "@/lib/prisma";
+
 import type { Prisma } from "@prisma/client";
 import { feeStructureSchema } from "@/lib/formValidationSchemas";
 import { getSchoolSettingsDefaults } from "@/lib/schoolSettings";
@@ -31,11 +29,10 @@ type FeeStructurePrisma = {
     findMany: (args: unknown) => Promise<FeeStructureListItem[]>;
     count: (args: unknown) => Promise<number>;
     create: (args: unknown) => Promise<FeeStructureListItem>;
+    update: (args: unknown) => Promise<FeeStructureListItem>;
   };
   $transaction: (ops: ReadonlyArray<Promise<unknown>>) => Promise<Array<unknown>>;
 };
-
-const feePrisma = prisma as unknown as FeeStructurePrisma;
 
 const autoApplyStudentFeesForStructure = async (params: {
   structureId: number;
@@ -43,6 +40,8 @@ const autoApplyStudentFeesForStructure = async (params: {
   amountMinor: number;
 }): Promise<void> => {
   const { structureId, classId, amountMinor } = params;
+  const prisma = (await import("@/lib/prisma")).default;
+  const { getSchoolSettingsDefaults } = await import("@/lib/schoolSettings");
 
   if (classId === null) {
     return;
@@ -93,10 +92,16 @@ const autoApplyStudentFeesForStructure = async (params: {
 };
 
 export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<FeeStructureListItem> | { error: string }>> {
+  // Import inside function to prevent build-time execution
+  const { getServerSession } = await import('next-auth');
+  const authOptions = (await import('@/pages/api/auth/[...nextauth]')).authOptions;
+  const prisma = (await import('@/lib/prisma')).default;
+  const feePrisma = prisma as unknown as FeeStructurePrisma;
+  
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session?.user) {
+    if (!session?.user || !["admin", "accountant"].includes(session.user.role)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -166,6 +171,12 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Fe
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse<FeeStructureListItem | { error: string }>> {
+  // Import inside function to prevent build-time execution
+  const { getServerSession } = await import('next-auth');
+  const authOptions = (await import('@/pages/api/auth/[...nextauth]')).authOptions;
+  const prisma = (await import('@/lib/prisma')).default;
+  const feePrisma = prisma as unknown as FeeStructurePrisma;
+  
   try {
     const session = await getServerSession(authOptions);
 
@@ -228,3 +239,6 @@ export async function POST(req: NextRequest): Promise<NextResponse<FeeStructureL
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
+
+// Force dynamic rendering to prevent build-time execution
+export const dynamic = 'force-dynamic';

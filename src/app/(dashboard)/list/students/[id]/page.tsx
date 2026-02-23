@@ -3,10 +3,6 @@ import StudentProfileView, {
   type ResultsSummary,
   type StudentWithClassCounts,
 } from "@/components/StudentProfileView";
-import prisma from "@/lib/prisma";
-import { getSchoolSettingsDefaults } from "@/lib/schoolSettings";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/pages/api/auth/[...nextauth]";
 import { notFound } from "next/navigation";
 
 type StudentPageProps = {
@@ -30,6 +26,18 @@ const SingleStudentPage = async ({ params }: StudentPageProps) => {
   if (!id) {
     return notFound();
   }
+  const [
+    { getServerSession },
+    { authOptions },
+    { default: prisma },
+    { getSchoolSettingsDefaults },
+  ] = await Promise.all([
+    import("next-auth"),
+    import("@/pages/api/auth/[...nextauth]"),
+    import("@/lib/prisma"),
+    import("@/lib/schoolSettings"),
+  ]);
+
   const session = await getServerSession(authOptions);
   const role = session?.user?.role;
 
@@ -128,3 +136,4 @@ const SingleStudentPage = async ({ params }: StudentPageProps) => {
 };
 
 export default SingleStudentPage;
+export const dynamic = "force-dynamic";

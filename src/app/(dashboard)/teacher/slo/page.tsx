@@ -1,11 +1,16 @@
-import { getServerSession } from "next-auth";
-
 import TeacherSloManagement from "@/components/TeacherSloManagement";
 import { authOptions } from "@/pages/api/auth/[...nextauth]";
 import { getSchoolSettingsDefaults } from "@/lib/schoolSettings";
 
 const TeacherSloPage = async () => {
-  const session = await getServerSession(authOptions);
+  const [{ getServerSession }, { authOptions: authOptionsDynamic }, { getSchoolSettingsDefaults: getSchoolSettingsDefaultsDynamic }] =
+    await Promise.all([
+      import("next-auth"),
+      import("@/pages/api/auth/[...nextauth]"),
+      import("@/lib/schoolSettings"),
+    ]);
+
+  const session = await getServerSession(authOptionsDynamic);
   const role = session?.user?.role;
   const userId = session?.user?.id;
 
@@ -19,7 +24,7 @@ const TeacherSloPage = async () => {
     );
   }
 
-  const { academicYear, term } = await getSchoolSettingsDefaults();
+  const { academicYear, term } = await getSchoolSettingsDefaultsDynamic();
 
   return (
     <div className="bg-white p-4 rounded-md flex-1 m-4 mt-0">
@@ -33,3 +38,4 @@ const TeacherSloPage = async () => {
 };
 
 export default TeacherSloPage;
+export const dynamic = "force-dynamic";

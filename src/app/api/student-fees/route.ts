@@ -1,7 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/pages/api/auth/[...nextauth]";
-import prisma from "@/lib/prisma";
 
 interface StudentFeeListItem {
   id: string;
@@ -76,8 +73,6 @@ type StudentFeePrisma = {
   $transaction: (ops: ReadonlyArray<Promise<unknown>>) => Promise<Array<unknown>>;
 };
 
-const studentFeePrisma = prisma as unknown as StudentFeePrisma;
-
 interface ApiResponse<T> {
   data: T[];
   pagination: {
@@ -91,6 +86,12 @@ interface ApiResponse<T> {
 export async function GET(
   req: NextRequest,
 ): Promise<NextResponse<ApiResponse<StudentFeeListItem> | { error: string }>> {
+  // Import inside function to prevent build-time execution
+  const { getServerSession } = await import('next-auth');
+  const authOptions = (await import('@/pages/api/auth/[...nextauth]')).authOptions;
+  const prisma = (await import('@/lib/prisma')).default;
+  const studentFeePrisma = prisma as unknown as StudentFeePrisma;
+
   try {
     const session = await getServerSession(authOptions);
 
@@ -188,3 +189,6 @@ export async function GET(
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
+
+// Force dynamic rendering to prevent build-time execution
+export const dynamic = 'force-dynamic';

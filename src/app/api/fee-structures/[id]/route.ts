@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/pages/api/auth/[...nextauth]";
-import prisma from "@/lib/prisma";
+
 import { z } from "zod";
 
 // Narrowed Prisma facade
@@ -26,8 +24,6 @@ type PrismaFacade = {
   };
   auditLog: { create: (args: { data: { actorUserId: string; entity: string; entityId: string; oldValue: unknown; newValue: unknown; reason?: string | null } }) => Promise<unknown> };
 };
-
-const db = prisma as unknown as PrismaFacade;
 
 const PatchSchema = z
   .object({
@@ -55,6 +51,12 @@ const toSingleValue = (value: string | string[] | undefined): string | undefined
 };
 
 export async function PATCH(req: NextRequest, context: RouteContext) {
+  // Import inside function to prevent build-time execution
+  const { getServerSession } = await import('next-auth');
+  const authOptions = (await import('@/pages/api/auth/[...nextauth]')).authOptions;
+  const prisma = (await import('@/lib/prisma')).default;
+  const db = prisma as unknown as PrismaFacade;
+
   const session = await getServerSession(authOptions);
   if (!session?.user || !["admin", "accountant"].includes(session.user.role)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -103,3 +105,6 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
 
   return NextResponse.json(updated);
 }
+
+// Force dynamic rendering to prevent build-time execution
+export const dynamic = 'force-dynamic';

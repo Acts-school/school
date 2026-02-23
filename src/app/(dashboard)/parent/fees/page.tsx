@@ -1,10 +1,14 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/pages/api/auth/[...nextauth]";
 import { redirect } from "next/navigation";
-import prisma from "@/lib/prisma";
 import ParentFeesClient from "@/components/ParentFeesClient";
 
 const ParentFeesPage = async () => {
+  const [{ getServerSession }, { authOptions }, { default: prisma }] =
+    await Promise.all([
+      import("next-auth"),
+      import("@/pages/api/auth/[...nextauth]"),
+      import("@/lib/prisma"),
+    ]);
+
   const session = await getServerSession(authOptions);
 
   if (!session?.user || session.user.role !== "parent") {
@@ -30,3 +34,4 @@ const ParentFeesPage = async () => {
 };
 
 export default ParentFeesPage;
+export const dynamic = "force-dynamic";

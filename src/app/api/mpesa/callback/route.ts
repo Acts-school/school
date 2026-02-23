@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
-import prisma from "@/lib/prisma";
+
 import { applyStudentFeePayment } from "@/lib/studentFeePayments";
 
 const mpesaCallbackSchema = z.object({
@@ -28,6 +28,9 @@ const mpesaCallbackSchema = z.object({
 export type MpesaCallbackBody = z.infer<typeof mpesaCallbackSchema>;
 
 export async function POST(req: NextRequest): Promise<NextResponse<{ ok: boolean }>> {
+  // Import inside function to prevent build-time execution
+  const prisma = (await import('@/lib/prisma')).default;
+  
   try {
     const json = (await req.json()) as unknown;
     const parsed = mpesaCallbackSchema.safeParse(json);
@@ -92,3 +95,6 @@ export async function POST(req: NextRequest): Promise<NextResponse<{ ok: boolean
     return NextResponse.json({ ok: false }, { status: 500 });
   }
 }
+
+// Force dynamic rendering to prevent build-time execution
+export const dynamic = 'force-dynamic';

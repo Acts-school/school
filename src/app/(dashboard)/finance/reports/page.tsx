@@ -149,6 +149,8 @@ type FinancePrisma = {
 
 const financePrisma = prisma as unknown as FinancePrisma;
 
+export const dynamic = 'force-dynamic';
+
 export default async function FinanceAdminReportsPage() {
   await ensurePermission("reports.view_admin");
 

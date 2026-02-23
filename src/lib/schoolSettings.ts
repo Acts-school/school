@@ -1,5 +1,3 @@
-import prisma from "./prisma";
-
 export type TermLiteral = "TERM1" | "TERM2" | "TERM3";
 
 export type SchoolSettingsDefaults = {
@@ -11,6 +9,8 @@ export type SchoolSettingsDefaults = {
 export const getSchoolSettingsDefaults = async (): Promise<SchoolSettingsDefaults> => {
   const now = new Date();
   const fallbackYear = now.getFullYear();
+
+  const { default: prisma } = await import("@/lib/prisma");
 
   const settings = await prisma.schoolSettings.findUnique({ where: { id: 1 } });
 

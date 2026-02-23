@@ -1,9 +1,13 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/pages/api/auth/[...nextauth]";
-import { getSchoolSettingsDefaults } from "@/lib/schoolSettings";
 import TeacherCompetencyManagement from "@/components/TeacherCompetencyManagement";
 
 const TeacherCompetenciesPage = async () => {
+  const [{ getServerSession }, { authOptions }, { getSchoolSettingsDefaults }] =
+    await Promise.all([
+      import("next-auth"),
+      import("@/pages/api/auth/[...nextauth]"),
+      import("@/lib/schoolSettings"),
+    ]);
+
   const session = await getServerSession(authOptions);
   const role = session?.user?.role;
   const userId = session?.user?.id;
@@ -30,3 +34,4 @@ const TeacherCompetenciesPage = async () => {
 };
 
 export default TeacherCompetenciesPage;
+export const dynamic = "force-dynamic";

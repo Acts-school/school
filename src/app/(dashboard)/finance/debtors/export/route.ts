@@ -1,8 +1,9 @@
-import prisma from "@/lib/prisma";
-import { ensurePermission } from "@/lib/authz";
-
 // GET /finance/debtors/export -> CSV
 export async function GET(request: Request): Promise<Response> {
+  // Import inside function to prevent build-time execution
+  const { ensurePermission } = await import("@/lib/authz");
+  const prisma = (await import("@/lib/prisma")).default;
+  
   await ensurePermission("fees.read");
 
   type PaymentRow = { amount: number };
@@ -90,3 +91,6 @@ export async function GET(request: Request): Promise<Response> {
     },
   });
 }
+
+// Force dynamic rendering to prevent build-time execution
+export const dynamic = 'force-dynamic';

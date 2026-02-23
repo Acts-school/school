@@ -1,4 +1,4 @@
-const DB_NAME = "emmanuelact-results-offline-writes";
+const DB_NAME = "scholara-results-offline-writes";
 const DB_VERSION = 1;
 const STORE_NAME = "resultsQueue";
 

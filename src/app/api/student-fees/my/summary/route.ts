@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/pages/api/auth/[...nextauth]";
-import prisma from "@/lib/prisma";
+
 import type { BaseRole } from "@/lib/rbac";
 
 type TermLiteral = "TERM1" | "TERM2" | "TERM3";
@@ -41,8 +39,6 @@ type StudentFeeSummaryPrisma = {
   };
 };
 
-const studentFeeSummaryPrisma = prisma as unknown as StudentFeeSummaryPrisma;
-
 interface MyStudentFeesSummaryResponse {
   term: TermLiteral | null;
   year: number | null;
@@ -68,7 +64,15 @@ const getYear = (row: StudentFeeSummaryRow): number => {
 
 export async function GET(
   req: NextRequest,
-): Promise<NextResponse<MyStudentFeesSummaryResponse | { error: string }>> {
+): Promise<NextResponse<MyStudentFeesSummaryResponse | {
+  error: string
+}>> {
+  // Import inside function to prevent build-time execution
+  const { getServerSession } = await import('next-auth');
+  const authOptions = (await import('@/pages/api/auth/[...nextauth]')).authOptions;
+  const prisma = (await import('@/lib/prisma')).default;
+  const studentFeeSummaryPrisma = prisma as unknown as StudentFeeSummaryPrisma;
+
   try {
     const session = await getServerSession(authOptions);
 
@@ -245,3 +249,6 @@ export async function GET(
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
+
+// Force dynamic rendering to prevent build-time execution
+export const dynamic = 'force-dynamic';

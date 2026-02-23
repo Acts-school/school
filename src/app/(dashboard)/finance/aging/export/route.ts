@@ -1,82 +1,84 @@
-import prisma from "@/lib/prisma";
-import { ensurePermission } from "@/lib/authz";
-import { getSchoolSettingsDefaults } from "@/lib/schoolSettings";
+// GET /finance/aging/export -> CSV
+export async function GET(request: Request): Promise<Response> {
+  // Import inside function to prevent build-time execution
+  const { ensurePermission } = await import("@/lib/authz");
+  const { getSchoolSettingsDefaults } = await import("@/lib/schoolSettings");
+  const prisma = (await import("@/lib/prisma")).default;
+  
+  await ensurePermission("fees.read");
 
-type TermLiteral = "TERM1" | "TERM2" | "TERM3";
+  type TermLiteral = "TERM1" | "TERM2" | "TERM3";
 
-type AgeBucketId =
-  | "not_due_yet"
-  | "d0_30"
-  | "d31_60"
-  | "d61_90"
-  | "d90_plus"
-  | "no_due_date";
+  type AgeBucketId =
+    | "not_due_yet"
+    | "d0_30"
+    | "d31_60"
+    | "d61_90"
+    | "d90_plus"
+    | "no_due_date";
 
-type StudentFeeRow = {
-  id: string;
-  amountDue: number;
-  amountPaid: number;
-  dueDate: Date | null;
-  term: TermLiteral | null;
-  academicYear: number | null;
-  student: {
+  type StudentFeeRow = {
     id: string;
-    name: string;
-    surname: string;
-    grade: { id: number; level: number } | null;
-    class: { id: number; name: string } | null;
-  };
-};
-
-type StudentFeeWhereInput = {
-  academicYear: number;
-  term?: TermLiteral;
-  student?: {
-    gradeId?: number;
-    classId?: number;
-  };
-};
-
-type StudentFeeFindManyArgs = {
-  where: StudentFeeWhereInput;
-  select: {
-    id: true;
-    amountDue: true;
-    amountPaid: true;
-    dueDate: true;
-    term: true;
-    academicYear: true;
+    amountDue: number;
+    amountPaid: number;
+    dueDate: Date | null;
+    term: TermLiteral | null;
+    academicYear: number | null;
     student: {
-      select: {
-        id: true;
-        name: true;
-        surname: true;
-        grade: { select: { id: true; level: true } } | null;
-        class: { select: { id: true; name: true } } | null;
+      id: string;
+      name: string;
+      surname: string;
+      grade: { id: number; level: number } | null;
+      class: { id: number; name: string } | null;
+    };
+  };
+
+  type StudentFeeWhereInput = {
+    academicYear: number;
+    term?: TermLiteral;
+    student?: {
+      gradeId?: number;
+      classId?: number;
+    };
+  };
+
+  type StudentFeeFindManyArgs = {
+    where: StudentFeeWhereInput;
+    select: {
+      id: true;
+      amountDue: true;
+      amountPaid: true;
+      dueDate: true;
+      term: true;
+      academicYear: true;
+      student: {
+        select: {
+          id: true;
+          name: true;
+          surname: true;
+          grade: { select: { id: true; level: true } } | null;
+          class: { select: { id: true; name: true } } | null;
+        };
       };
     };
   };
-};
 
-type FinancePrisma = {
-  studentFee: {
-    findMany: (args: StudentFeeFindManyArgs) => Promise<StudentFeeRow[]>;
+  type FinancePrisma = {
+    studentFee: {
+      findMany: (args: StudentFeeFindManyArgs) => Promise<StudentFeeRow[]>;
+    };
   };
-};
 
-const financePrisma = prisma as unknown as FinancePrisma;
+  const financePrisma = prisma as unknown as FinancePrisma;
 
-const ageBucketByDays = (days: number | null): AgeBucketId => {
-  if (days === null) return "no_due_date";
-  if (days < 0) return "not_due_yet";
-  if (days <= 30) return "d0_30";
-  if (days <= 60) return "d31_60";
-  if (days <= 90) return "d61_90";
-  return "d90_plus";
-};
-
-export async function GET(request: Request): Promise<Response> {
-  await ensurePermission("fees.read");
+  const ageBucketByDays = (days: number | null): AgeBucketId => {
+    if (days === null) return "no_due_date";
+    if (days < 0) return "not_due_yet";
+    if (days <= 30) return "d0_30";
+    if (days <= 60) return "d31_60";
+    if (days <= 90) return "d61_90";
+    return "d90_plus";
+  };
 
   const url = new URL(request.url);
   const yearParam = url.searchParams.get("year");
@@ -239,3 +241,6 @@ export async function GET(request: Request): Promise<Response> {
     },
   });
 }
+
+// Force dynamic rendering to prevent build-time execution
+export const dynamic = 'force-dynamic';

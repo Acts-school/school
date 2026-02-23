@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import type { Prisma } from "@prisma/client";
-import prisma from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
+import type { PrismaClient } from "@prisma/client";
+
 import { applyStudentFeePayment } from "@/lib/studentFeePayments";
 import { getSchoolSettingsDefaults } from "@/lib/schoolSettings";
 
@@ -65,7 +66,7 @@ const mapFeeCodeToCategoryName = (feeCode: string): string | null => {
   return feeCodeMap[feeCode] ?? null;
 };
 
-const ensureStudentPhoneAlias = async (studentId: string, normalizedMsisdn: string): Promise<void> => {
+const ensureStudentPhoneAlias = async (prisma: PrismaClient, studentId: string, normalizedMsisdn: string): Promise<void> => {
   const existing = await prisma.studentPhoneAlias.findFirst({
     where: {
       studentId,
@@ -85,6 +86,7 @@ const ensureStudentPhoneAlias = async (studentId: string, normalizedMsisdn: stri
 };
 
 const findStudentFeeIdForStudentRefAndCategory = async (
+  prisma: PrismaClient,
   studentRef: string,
   feeCategoryName: string,
 ): Promise<string | null> => {
@@ -122,6 +124,7 @@ const findStudentFeeIdForStudentRefAndCategory = async (
 };
 
 const findOldestOutstandingStudentFeeIdForStudentAndCategory = async (
+  prisma: PrismaClient,
   studentId: string,
   feeCategoryName: string,
 ): Promise<string | null> => {
@@ -151,6 +154,7 @@ const findOldestOutstandingStudentFeeIdForStudentAndCategory = async (
 };
 
 const findStudentFeeIdForStudentAndCategory = async (
+  prisma: PrismaClient,
   studentId: string,
   feeCategoryName: string,
 ): Promise<string | null> => {
@@ -178,7 +182,7 @@ const findStudentFeeIdForStudentAndCategory = async (
   return studentFee?.id ?? null;
 };
 
-const findOldestOutstandingStudentFeeIdForStudent = async (studentId: string): Promise<string | null> => {
+const findOldestOutstandingStudentFeeIdForStudent = async (prisma: PrismaClient, studentId: string): Promise<string | null> => {
   const studentFee = await prisma.studentFee.findFirst({
     where: {
       studentId,
@@ -195,6 +199,7 @@ const findOldestOutstandingStudentFeeIdForStudent = async (studentId: string): P
 };
 
 const findOldestOutstandingStudentFeeIdForStudentExcludingCategory = async (
+  prisma: PrismaClient,
   studentId: string,
   feeCategoryName: string,
 ): Promise<string | null> => {
@@ -224,7 +229,7 @@ const findOldestOutstandingStudentFeeIdForStudentExcludingCategory = async (
   return studentFee?.id ?? null;
 };
 
-const findStudentMatchByMsisdn = async (normalizedMsisdn: string): Promise<StudentMsisdnMatch> => {
+const findStudentMatchByMsisdn = async (prisma: PrismaClient, normalizedMsisdn: string): Promise<StudentMsisdnMatch> => {
   const lastNine = normalizedMsisdn.slice(-9);
 
   const parents = await prisma.parent.findMany({
@@ -272,6 +277,8 @@ const findStudentMatchByMsisdn = async (normalizedMsisdn: string): Promise<Stude
 };
 
 export async function POST(req: NextRequest): Promise<NextResponse<{ ResultCode: string; ResultDesc: string }>> {
+  // Import inside function to prevent build-time execution
+  const prisma = (await import('@/lib/prisma')).default;
   const json = (await req.json()) as unknown;
   const parsed = c2bConfirmSchema.safeParse(json);
 
@@ -307,20 +314,21 @@ export async function POST(req: NextRequest): Promise<NextResponse<{ ResultCode:
 
   if (businessShortCode === COMPUTER_STUDIES_PAYBILL_SHORTCODE && billRefRaw === COMPUTER_STUDIES_BILLREF) {
     if (normalizedMsisdn) {
-      matchInfo = await findStudentMatchByMsisdn(normalizedMsisdn);
+      matchInfo = await findStudentMatchByMsisdn(prisma, normalizedMsisdn);
     }
 
     const studentIdFromPhone = matchInfo?.uniqueStudentId ?? null;
 
     if (studentIdFromPhone) {
       studentFeeId = await findOldestOutstandingStudentFeeIdForStudentAndCategory(
+        prisma,
         studentIdFromPhone,
         COMPUTER_STUDIES_CATEGORY_NAME,
       );
     }
   } else if (businessShortCode === LEGACY_PAYBILL_SHORTCODE) {
     if (normalizedMsisdn) {
-      matchInfo = await findStudentMatchByMsisdn(normalizedMsisdn);
+      matchInfo = await findStudentMatchByMsisdn(prisma, normalizedMsisdn);
     }
 
     const studentIdFromPhone = matchInfo?.uniqueStudentId ?? null;
@@ -341,28 +349,29 @@ export async function POST(req: NextRequest): Promise<NextResponse<{ ResultCode:
       }
 
       if (feeCategoryName) {
-        studentFeeId = await findStudentFeeIdForStudentAndCategory(studentIdFromPhone, feeCategoryName);
+        studentFeeId = await findStudentFeeIdForStudentAndCategory(prisma, studentIdFromPhone, feeCategoryName);
       }
 
       if (!studentFeeId) {
-        studentFeeId = await findOldestOutstandingStudentFeeIdForStudent(studentIdFromPhone);
+        studentFeeId = await findOldestOutstandingStudentFeeIdForStudent(prisma, studentIdFromPhone);
       }
     } else if (studentRef && feeCodeFromBillRef) {
       const feeCategoryName = mapFeeCodeToCategoryName(feeCodeFromBillRef);
 
       if (feeCategoryName) {
-        studentFeeId = await findStudentFeeIdForStudentRefAndCategory(studentRef, feeCategoryName);
+        studentFeeId = await findStudentFeeIdForStudentRefAndCategory(prisma, studentRef, feeCategoryName);
       }
     }
   } else if (businessShortCode === SHARED_TILL_SHORTCODE) {
     if (normalizedMsisdn) {
-      matchInfo = await findStudentMatchByMsisdn(normalizedMsisdn);
+      matchInfo = await findStudentMatchByMsisdn(prisma, normalizedMsisdn);
     }
 
     const studentIdFromPhone = matchInfo?.uniqueStudentId ?? null;
 
     if (studentIdFromPhone) {
       studentFeeId = await findOldestOutstandingStudentFeeIdForStudentExcludingCategory(
+        prisma,
         studentIdFromPhone,
         COMPUTER_STUDIES_CATEGORY_NAME,
       );
@@ -371,7 +380,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<{ ResultCode:
     const feeCategoryName = mapFeeCodeToCategoryName(feeCodeFromBillRef);
 
     if (feeCategoryName) {
-      studentFeeId = await findStudentFeeIdForStudentRefAndCategory(studentRef, feeCategoryName);
+      studentFeeId = await findStudentFeeIdForStudentRefAndCategory(prisma, studentRef, feeCategoryName);
     }
   }
 
@@ -391,7 +400,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<{ ResultCode:
         });
 
         if (studentFeeRecord) {
-          await ensureStudentPhoneAlias(studentFeeRecord.studentId, normalizedMsisdn);
+          await ensureStudentPhoneAlias(prisma, studentFeeRecord.studentId, normalizedMsisdn);
         }
       }
 
@@ -454,3 +463,6 @@ export async function POST(req: NextRequest): Promise<NextResponse<{ ResultCode:
 
   return NextResponse.json({ ResultCode: "0", ResultDesc: "Received" });
 }
+
+// Force dynamic rendering to prevent build-time execution
+export const dynamic = 'force-dynamic';

@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
-import { ensurePermission, getAuthContext, getCurrentSchoolContext } from "@/lib/authz";
 
 // Narrowed Prisma facade for messaging models
 
@@ -124,8 +122,6 @@ type MessagesPrismaClient = {
   $transaction: <T>(ops: ReadonlyArray<Promise<T>>) => Promise<T[]>;
 };
 
-const messagesPrisma = prisma as unknown as MessagesPrismaClient;
-
 type UserNameRow = { id: string; username: string };
 type NamedUserRow = { id: string; username: string; name: string; surname: string };
 
@@ -152,18 +148,68 @@ type UserLookupPrisma = {
   accountant: { findMany: (args: AccountantLookupArgs) => Promise<UserNameRow[]> };
 };
 
-const userLookupPrisma = prisma as unknown as UserLookupPrisma;
-
 export const GET = async (req: NextRequest): Promise<NextResponse> => {
+  // Import inside function to prevent build-time execution
+  const prisma = (await import('@/lib/prisma')).default;
+  const messagesPrisma = prisma as unknown as MessagesPrismaClient;
+  const userLookupPrisma = prisma as unknown as UserLookupPrisma;
+  const { getCurrentSchoolContext, ensurePermission } = await import('@/lib/authz');
+  const { getServerSession } = await import('next-auth');
+  const authOptions = (await import('@/pages/api/auth/[...nextauth]')).authOptions;
+
   try {
     await ensurePermission("messages.read");
-    const auth = await getAuthContext();
-    if (!auth) {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const auth = { userId: session.user.id };
 
     const { searchParams } = new URL(req.url);
     const threadIdParam = searchParams.get("threadId");
+    const unitIdParam = searchParams.get("unitId");
+
+    if (unitIdParam) {
+      const unitId = Number.parseInt(unitIdParam, 10);
+      let thread = await (messagesPrisma.messageThread as any).findFirst({
+        where: { unitId },
+        select: {
+          id: true,
+          subject: true,
+          participants: { select: { userId: true, isDeleted: true } },
+          messages: {
+            select: { id: true, body: true, createdAt: true, senderUserId: true },
+            orderBy: { createdAt: "asc" },
+          },
+        },
+      });
+
+      if (!thread) {
+        const newThread = await (messagesPrisma.messageThread as any).create({
+          data: { unitId, subject: "Unit Discussion" }
+        });
+
+        thread = {
+          id: newThread.id,
+          subject: "Unit Discussion",
+          participants: [],
+          messages: []
+        };
+      }
+
+      const isParticipant = thread.participants?.some((p: any) => p.userId === auth.userId);
+      if (!isParticipant) {
+        await (messagesPrisma.messageParticipant as any).create({
+          data: { threadId: thread.id, userId: auth.userId }
+        });
+      }
+
+      return NextResponse.json({
+        threadId: thread.id,
+        subject: thread.subject,
+        messages: thread.messages,
+      });
+    }
 
     if (threadIdParam) {
       const threadId = Number.parseInt(threadIdParam, 10);
@@ -247,27 +293,27 @@ export const GET = async (req: NextRequest): Promise<NextResponse> => {
 
     const [students, teachers, parents, admins, accountants] = otherUserIds.length
       ? await Promise.all([
-          userLookupPrisma.student.findMany({
-            where: { id: { in: otherUserIds } },
-            select: { id: true, username: true, name: true, surname: true },
-          } as StudentLookupArgs),
-          userLookupPrisma.teacher.findMany({
-            where: { id: { in: otherUserIds } },
-            select: { id: true, username: true, name: true, surname: true },
-          } as TeacherLookupArgs),
-          userLookupPrisma.parent.findMany({
-            where: { id: { in: otherUserIds } },
-            select: { id: true, username: true, name: true, surname: true },
-          } as ParentLookupArgs),
-          userLookupPrisma.admin.findMany({
-            where: { id: { in: otherUserIds } },
-            select: { id: true, username: true },
-          } as AdminLookupArgs),
-          userLookupPrisma.accountant.findMany({
-            where: { id: { in: otherUserIds } },
-            select: { id: true, username: true },
-          } as AccountantLookupArgs),
-        ])
+        userLookupPrisma.student.findMany({
+          where: { id: { in: otherUserIds } },
+          select: { id: true, username: true, name: true, surname: true },
+        } as StudentLookupArgs),
+        userLookupPrisma.teacher.findMany({
+          where: { id: { in: otherUserIds } },
+          select: { id: true, username: true, name: true, surname: true },
+        } as TeacherLookupArgs),
+        userLookupPrisma.parent.findMany({
+          where: { id: { in: otherUserIds } },
+          select: { id: true, username: true, name: true, surname: true },
+        } as ParentLookupArgs),
+        userLookupPrisma.admin.findMany({
+          where: { id: { in: otherUserIds } },
+          select: { id: true, username: true },
+        } as AdminLookupArgs),
+        userLookupPrisma.accountant.findMany({
+          where: { id: { in: otherUserIds } },
+          select: { id: true, username: true },
+        } as AccountantLookupArgs),
+      ])
       : [[], [], [], [], []];
 
     const displayMap = new Map<string, { name: string; username: string }>();
@@ -339,12 +385,21 @@ interface SendMessageBody {
 }
 
 export const POST = async (req: NextRequest): Promise<NextResponse> => {
+  // Import inside function to prevent build-time execution
+  const prisma = (await import('@/lib/prisma')).default;
+  const messagesPrisma = prisma as unknown as MessagesPrismaClient;
+  const userLookupPrisma = prisma as unknown as UserLookupPrisma;
+  const { getCurrentSchoolContext, ensurePermission } = await import('@/lib/authz');
+  const { getServerSession } = await import('next-auth');
+  const authOptions = (await import('@/pages/api/auth/[...nextauth]')).authOptions;
+
   try {
     await ensurePermission("messages.send");
-    const auth = await getAuthContext();
-    if (!auth) {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const auth = { userId: session.user.id };
 
     const json = (await req.json()) as unknown;
 
@@ -466,3 +521,6 @@ export const POST = async (req: NextRequest): Promise<NextResponse> => {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 };
+
+// Force dynamic rendering to prevent build-time execution
+export const dynamic = 'force-dynamic';

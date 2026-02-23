@@ -1,6 +1,3 @@
-import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/pages/api/auth/[...nextauth]";
 import { notFound } from "next/navigation";
 import TeacherProfileView, { type TeacherWithCounts } from "@/components/TeacherProfileView";
 
@@ -25,6 +22,13 @@ const SingleTeacherPage = async ({ params }: TeacherPageProps) => {
   if (!id) {
     return notFound();
   }
+  const [{ getServerSession }, { authOptions }, { default: prisma }] =
+    await Promise.all([
+      import("next-auth"),
+      import("@/pages/api/auth/[...nextauth]"),
+      import("@/lib/prisma"),
+    ]);
+
   const session = await getServerSession(authOptions);
   const role = session?.user?.role;
 
@@ -49,3 +53,4 @@ const SingleTeacherPage = async ({ params }: TeacherPageProps) => {
 };
 
 export default SingleTeacherPage;
+export const dynamic = "force-dynamic";

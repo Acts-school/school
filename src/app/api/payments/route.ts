@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/pages/api/auth/[...nextauth]";
-import prisma from "@/lib/prisma";
+
 import { studentFeePaymentSchema } from "@/lib/formValidationSchemas";
 import type { PaymentMethod } from "@/lib/fees.actions";
 import { applyStudentFeePayment } from "@/lib/studentFeePayments";
@@ -26,6 +24,11 @@ const generateCashReference = (studentFeeId: string): string => {
 };
 
 export async function GET(req: NextRequest): Promise<NextResponse<{ data: PaymentListItem[] } | { error: string }>> {
+  // Import inside function to prevent build-time execution
+  const { getServerSession } = await import('next-auth');
+  const authOptions = (await import('@/pages/api/auth/[...nextauth]')).authOptions;
+  const prisma = (await import('@/lib/prisma')).default;
+  
   try {
     const session = await getServerSession(authOptions);
 
@@ -63,6 +66,11 @@ export async function GET(req: NextRequest): Promise<NextResponse<{ data: Paymen
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse<PaymentListItem | { error: string }>> {
+  // Import inside function to prevent build-time execution
+  const { getServerSession } = await import('next-auth');
+  const authOptions = (await import('@/pages/api/auth/[...nextauth]')).authOptions;
+  const prisma = (await import('@/lib/prisma')).default;
+  
   try {
     const session = await getServerSession(authOptions);
 
@@ -152,3 +160,6 @@ export async function POST(req: NextRequest): Promise<NextResponse<PaymentListIt
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
+
+// Force dynamic rendering to prevent build-time execution
+export const dynamic = 'force-dynamic';

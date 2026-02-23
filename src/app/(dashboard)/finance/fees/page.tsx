@@ -43,6 +43,8 @@ const inferStageGroupLabel = (level: number | null, stage: EducationStageLiteral
   return "Other";
 };
 
+export const dynamic = 'force-dynamic';
+
 export default async function FeesPage() {
   await ensurePermission("fees.read");
   const { academicYear, term } = await getSchoolSettingsDefaults();

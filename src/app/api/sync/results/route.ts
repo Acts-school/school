@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 
-import prisma from "@/lib/prisma";
-import { ensurePermission, getCurrentSchoolContext } from "@/lib/authz";
-
 type ResultSyncOpType = "CREATE_RESULT" | "UPDATE_RESULT";
 
 type ResultSyncStatus = "succeeded" | "failed";
@@ -58,6 +55,10 @@ function validateContext(payload: BaseResultOperationPayload): string | null {
 export async function POST(
   req: NextRequest,
 ): Promise<NextResponse<ResultSyncResponse | { error: string }>> {
+  // Import inside function to prevent build-time execution
+  const prisma = (await import('@/lib/prisma')).default;
+  const { getCurrentSchoolContext, ensurePermission } = await import('@/lib/authz');
+  
   try {
     await ensurePermission("results.write");
     const { schoolId } = await getCurrentSchoolContext();
@@ -126,6 +127,8 @@ async function handleCreateResult(
   payload: CreateResultOperationPayload,
   schoolId: number | null,
 ): Promise<OperationResult> {
+  const prisma = (await import('@/lib/prisma')).default;
+  
   const existing = await prisma.result.findUnique({
     where: { clientRequestId: payload.clientRequestId } as unknown as Prisma.ResultWhereUniqueInput,
   });
@@ -224,6 +227,8 @@ async function handleUpdateResult(
   payload: UpdateResultOperationPayload,
   schoolId: number | null,
 ): Promise<OperationResult> {
+  const prisma = (await import('@/lib/prisma')).default;
+  
   const existing = await prisma.result.findUnique({
     where: { id: payload.id },
     include: {
@@ -300,3 +305,6 @@ async function handleUpdateResult(
 
   return { ok: true };
 }
+
+// Force dynamic rendering to prevent build-time execution
+export const dynamic = 'force-dynamic';

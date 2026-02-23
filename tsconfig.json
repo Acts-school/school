@@ -47,6 +47,7 @@
   ],
   "exclude": [
     "node_modules",
-    "prisma/**/*"
+    "prisma/seed*.ts",
+    "prisma/reset-and-seed-minimal.ts"
   ]
 }
