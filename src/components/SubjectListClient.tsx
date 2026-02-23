@@ -9,6 +9,7 @@ import Image from "next/image";
 import { useSession } from "next-auth/react";
 import FormContainerClient from "@/components/FormContainerClient";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 
 type SubjectList = {
   id: number;
@@ -114,6 +115,22 @@ const SubjectListClient = () => {
       </td>
       <td>
         <div className="flex items-center gap-2">
+          {["admin", "teacher"].includes(role as string) && (
+            <Link
+              href={`/list/subjects/${item.id}/builder`}
+              className="px-2 py-1 bg-lamaSky rounded-md text-xs text-white cursor-pointer hover:bg-opacity-80 transition-all font-medium whitespace-nowrap"
+            >
+              Course Builder
+            </Link>
+          )}
+          {["student", "parent"].includes(role as string) && (
+            <Link
+              href={`/list/subjects/${item.id}/learn`}
+              className="px-2 py-1 bg-lamaPurple rounded-md text-xs text-white cursor-pointer hover:bg-opacity-80 transition-all font-medium whitespace-nowrap"
+            >
+              Learn Course
+            </Link>
+          )}
           {role === "admin" && (
             <>
               <FormContainerClient table="subject" type="update" data={item} />

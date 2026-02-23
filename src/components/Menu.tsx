@@ -44,6 +44,18 @@ const menuItems = [
       },
       {
         icon: "/lesson.png",
+        label: "My Learning (LMS)",
+        href: "/student/lms",
+        visible: ["student", "parent"],
+      },
+      {
+        icon: "/lesson.png",
+        label: "Teaching Hub (LMS)",
+        href: "/teacher/lms",
+        visible: ["teacher"],
+      },
+      {
+        icon: "/lesson.png",
         label: "Lessons",
         href: "/list/lessons",
         visible: ["admin", "teacher"],

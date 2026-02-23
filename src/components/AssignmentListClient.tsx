@@ -10,6 +10,7 @@ import Pagination from "@/components/Pagination";
 import FormContainerClient from "@/components/FormContainerClient";
 import { ITEM_PER_PAGE } from "@/lib/settings";
 import { useAssignmentsList, type AssignmentListItem } from "@/hooks/useAssignments";
+import Link from "next/link";
 
 export default function AssignmentListClient() {
   const searchParams = useSearchParams() ?? new URLSearchParams();
@@ -29,9 +30,9 @@ export default function AssignmentListClient() {
 
   const classId = classIdParam
     ? (() => {
-        const parsed = Number.parseInt(classIdParam, 10);
-        return Number.isNaN(parsed) ? undefined : parsed;
-      })()
+      const parsed = Number.parseInt(classIdParam, 10);
+      return Number.isNaN(parsed) ? undefined : parsed;
+    })()
     : undefined;
 
   const teacherId = teacherIdParam ?? undefined;
@@ -70,11 +71,11 @@ export default function AssignmentListClient() {
     },
     ...(role === "admin" || role === "teacher"
       ? [
-          {
-            header: "Actions",
-            accessor: "action",
-          },
-        ]
+        {
+          header: "Actions",
+          accessor: "action",
+        },
+      ]
       : []),
   ];
 
@@ -96,8 +97,22 @@ export default function AssignmentListClient() {
         </td>
         <td>
           <div className="flex items-center gap-2">
+            {role === "student" && (
+              <Link
+                href={`/list/assignments/${item.id}/submit`}
+                className="px-2 py-1 bg-lamaPurple rounded-md text-xs text-white hover:bg-opacity-80 transition-all font-medium whitespace-nowrap"
+              >
+                Submit / View Grade
+              </Link>
+            )}
             {(role === "admin" || role === "teacher") && (
               <>
+                <Link
+                  href={`/list/assignments/${item.id}/submissions`}
+                  className="px-2 py-1 bg-lamaSky rounded-md text-xs text-white hover:bg-opacity-80 transition-all font-medium whitespace-nowrap"
+                >
+                  View Submissions
+                </Link>
                 <FormContainerClient table="assignment" type="update" data={item} />
                 <FormContainerClient table="assignment" type="delete" id={item.id} />
               </>

@@ -9,13 +9,16 @@ const TeacherPage = async () => {
 
   const session = await getServerSession(authOptions);
   const userId = session?.user?.id;
+
   return (
     <div className="flex-1 p-4 flex gap-4 flex-col xl:flex-row">
       {/* LEFT */}
       <div className="w-full xl:w-2/3">
-        <div className="h-full bg-white p-4 rounded-md">
+        <div className="bg-white p-4 rounded-md h-[720px] flex flex-col">
           <h1 className="text-xl font-semibold">Schedule</h1>
-          <BigCalendarContainer type="teacherId" id={userId!} />
+          <div className="mt-4 flex-1">
+            <BigCalendarContainer type="teacherId" id={userId!} />
+          </div>
         </div>
       </div>
       {/* RIGHT */}

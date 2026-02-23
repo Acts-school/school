@@ -9,7 +9,7 @@ import QueryProvider from "@/providers/QueryProvider";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "EmmanuelAct - School Management System",
+  title: "Scholara - School Management System",
   description: "Next.js School Management System",
   manifest: "/manifest.json",
 };

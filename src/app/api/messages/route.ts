@@ -167,6 +167,49 @@ export const GET = async (req: NextRequest): Promise<NextResponse> => {
 
     const { searchParams } = new URL(req.url);
     const threadIdParam = searchParams.get("threadId");
+    const unitIdParam = searchParams.get("unitId");
+
+    if (unitIdParam) {
+      const unitId = Number.parseInt(unitIdParam, 10);
+      let thread = await (messagesPrisma.messageThread as any).findFirst({
+        where: { unitId },
+        select: {
+          id: true,
+          subject: true,
+          participants: { select: { userId: true, isDeleted: true } },
+          messages: {
+            select: { id: true, body: true, createdAt: true, senderUserId: true },
+            orderBy: { createdAt: "asc" },
+          },
+        },
+      });
+
+      if (!thread) {
+        const newThread = await (messagesPrisma.messageThread as any).create({
+          data: { unitId, subject: "Unit Discussion" }
+        });
+
+        thread = {
+          id: newThread.id,
+          subject: "Unit Discussion",
+          participants: [],
+          messages: []
+        };
+      }
+
+      const isParticipant = thread.participants?.some((p: any) => p.userId === auth.userId);
+      if (!isParticipant) {
+        await (messagesPrisma.messageParticipant as any).create({
+          data: { threadId: thread.id, userId: auth.userId }
+        });
+      }
+
+      return NextResponse.json({
+        threadId: thread.id,
+        subject: thread.subject,
+        messages: thread.messages,
+      });
+    }
 
     if (threadIdParam) {
       const threadId = Number.parseInt(threadIdParam, 10);
@@ -250,27 +293,27 @@ export const GET = async (req: NextRequest): Promise<NextResponse> => {
 
     const [students, teachers, parents, admins, accountants] = otherUserIds.length
       ? await Promise.all([
-          userLookupPrisma.student.findMany({
-            where: { id: { in: otherUserIds } },
-            select: { id: true, username: true, name: true, surname: true },
-          } as StudentLookupArgs),
-          userLookupPrisma.teacher.findMany({
-            where: { id: { in: otherUserIds } },
-            select: { id: true, username: true, name: true, surname: true },
-          } as TeacherLookupArgs),
-          userLookupPrisma.parent.findMany({
-            where: { id: { in: otherUserIds } },
-            select: { id: true, username: true, name: true, surname: true },
-          } as ParentLookupArgs),
-          userLookupPrisma.admin.findMany({
-            where: { id: { in: otherUserIds } },
-            select: { id: true, username: true },
-          } as AdminLookupArgs),
-          userLookupPrisma.accountant.findMany({
-            where: { id: { in: otherUserIds } },
-            select: { id: true, username: true },
-          } as AccountantLookupArgs),
-        ])
+        userLookupPrisma.student.findMany({
+          where: { id: { in: otherUserIds } },
+          select: { id: true, username: true, name: true, surname: true },
+        } as StudentLookupArgs),
+        userLookupPrisma.teacher.findMany({
+          where: { id: { in: otherUserIds } },
+          select: { id: true, username: true, name: true, surname: true },
+        } as TeacherLookupArgs),
+        userLookupPrisma.parent.findMany({
+          where: { id: { in: otherUserIds } },
+          select: { id: true, username: true, name: true, surname: true },
+        } as ParentLookupArgs),
+        userLookupPrisma.admin.findMany({
+          where: { id: { in: otherUserIds } },
+          select: { id: true, username: true },
+        } as AdminLookupArgs),
+        userLookupPrisma.accountant.findMany({
+          where: { id: { in: otherUserIds } },
+          select: { id: true, username: true },
+        } as AccountantLookupArgs),
+      ])
       : [[], [], [], [], []];
 
     const displayMap = new Map<string, { name: string; username: string }>();
