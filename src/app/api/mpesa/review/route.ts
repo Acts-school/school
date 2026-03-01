@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import type { MpesaTransactionStatus } from "@prisma/client";
+import type { MpesaTransactionStatus } from "../../../../../prisma/client";
 
 type MpesaReviewReasonLocal = "NO_STUDENT" | "MULTIPLE_STUDENTS" | "NO_FEES" | "OTHER";
 

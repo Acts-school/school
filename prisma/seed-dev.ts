@@ -1,4 +1,4 @@
-import { PrismaClient, EducationStage, Term, InvoiceStatus, PaymentMethod, UserSex } from "@prisma/client";
+import { PrismaClient, EducationStage, Term, InvoiceStatus, PaymentMethod, UserSex } from "./client";
 import bcrypt from "bcryptjs";
 import { seedFees } from "./seed-fees";
 

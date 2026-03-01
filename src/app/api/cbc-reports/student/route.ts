@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import type { Term } from "@prisma/client";
+import type { Term } from "../../../../../prisma/client";
 import { getCbcTermReport } from "@/lib/cbcReports";
 
 export async function GET(request: NextRequest) {

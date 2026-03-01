@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "./prisma/client";
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
@@ -8,7 +8,7 @@ async function main() {
 
   // Admin foydalanuvchilarini yaratish
   const hashedPassword = await bcrypt.hash("admin123", 10);
-  
+
   await prisma.admin.upsert({
     where: { username: "admin1" },
     create: {
@@ -23,7 +23,7 @@ async function main() {
   await prisma.admin.upsert({
     where: { username: "admin2" },
     create: {
-      username: "admin2", 
+      username: "admin2",
       password: hashedPassword,
     },
     update: {

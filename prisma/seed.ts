@@ -1,4 +1,4 @@
-import { PrismaClient, EducationStage } from "@prisma/client";
+import { PrismaClient, EducationStage } from "./client";
 import bcrypt from "bcryptjs";
 import { seedFees } from "./seed-fees";
 
@@ -10,7 +10,7 @@ async function main() {
   // Admin parollarini yangilash
   const hashedPassword = await bcrypt.hash("admin123", 10);
   const accountantPassword = await bcrypt.hash("accountant123", 10);
-  
+
   try {
     await prisma.admin.upsert({
       where: { username: "admin1" },
@@ -151,11 +151,11 @@ async function main() {
   for (let i = 1; i <= 5; i++) {
     await prisma.event.create({
       data: {
-        title: `Event ${i}`, 
-        description: `Description for Event ${i}`, 
-        startTime: new Date(new Date().setHours(new Date().getHours() + 1)), 
-        endTime: new Date(new Date().setHours(new Date().getHours() + 2)), 
-        classId: (i % 5) + 1, 
+        title: `Event ${i}`,
+        description: `Description for Event ${i}`,
+        startTime: new Date(new Date().setHours(new Date().getHours() + 1)),
+        endTime: new Date(new Date().setHours(new Date().getHours() + 2)),
+        classId: (i % 5) + 1,
       },
     });
   }
@@ -164,10 +164,10 @@ async function main() {
   for (let i = 1; i <= 5; i++) {
     await prisma.announcement.create({
       data: {
-        title: `Announcement ${i}`, 
-        description: `Description for Announcement ${i}`, 
-        date: new Date(), 
-        classId: (i % 5) + 1, 
+        title: `Announcement ${i}`,
+        description: `Description for Announcement ${i}`,
+        date: new Date(),
+        classId: (i % 5) + 1,
       },
     });
   }

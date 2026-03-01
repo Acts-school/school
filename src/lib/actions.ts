@@ -8,8 +8,8 @@ import type {
   SloAchievementLevel,
   Term,
   ThemePreference,
-} from "@prisma/client";
-import { Prisma } from "@prisma/client";
+} from "../../prisma/client";
+import { Prisma } from "../../prisma/client";
 import {
   announcementSchema,
   type AnnouncementSchema,

@@ -34,13 +34,13 @@ const menuItems = [
         icon: "/subject.png",
         label: "Subjects",
         href: "/list/subjects",
-        visible: ["admin"],
+        visible: [],
       },
       {
         icon: "/class.png",
         label: "Classes",
         href: "/list/classes",
-        visible: ["admin", "teacher"],
+        visible: ["teacher"],
       },
       {
         icon: "/lesson.png",
@@ -58,7 +58,7 @@ const menuItems = [
         icon: "/lesson.png",
         label: "Lessons",
         href: "/list/lessons",
-        visible: ["admin", "teacher"],
+        visible: ["teacher"],
       },
       {
         icon: "/exam.png",
@@ -82,7 +82,7 @@ const menuItems = [
         icon: "/attendance.png",
         label: "Attendance",
         href: "/list/attendance",
-        visible: ["admin", "teacher", "student", "parent"],
+        visible: ["teacher", "student", "parent"],
       },
       {
         icon: "/result.png",
@@ -106,19 +106,19 @@ const menuItems = [
         icon: "/calendar.png",
         label: "Events",
         href: "/list/events",
-        visible: ["admin", "teacher", "student", "parent"],
+        visible: ["teacher", "student", "parent"],
       },
       {
         icon: "/message.png",
         label: "Messages",
         href: "/list/messages",
-        visible: ["admin", "teacher", "student", "parent"],
+        visible: ["teacher", "student", "parent"],
       },
       {
         icon: "/announcement.png",
         label: "Announcements",
         href: "/list/announcements",
-        visible: ["admin", "teacher", "student", "parent"],
+        visible: ["teacher", "student", "parent"],
       },
       {
         icon: "/finance.png",

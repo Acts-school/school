@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import type { Prisma } from "@prisma/client";
+import type { Prisma } from "../../../../../prisma/client";
 
 type AttendanceOpType = "CREATE_ATTENDANCE" | "UPDATE_ATTENDANCE";
 

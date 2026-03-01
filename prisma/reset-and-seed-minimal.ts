@@ -1,4 +1,4 @@
-import { PrismaClient, EducationStage, Term } from "@prisma/client";
+import { PrismaClient, EducationStage, Term } from "./client";
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();

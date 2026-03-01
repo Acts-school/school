@@ -4,7 +4,7 @@ import type {
   CbcCompetencyLevel,
   SloAchievementLevel,
   StudentCompetencyRecord,
-} from "@prisma/client";
+} from "../../../../../prisma/client";
 
 const CBC_COMPETENCY_LABELS: Record<CbcCompetency, string> = {
   COMMUNICATION_COLLABORATION: "Communication & Collaboration",

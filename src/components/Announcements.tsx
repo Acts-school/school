@@ -1,4 +1,4 @@
-import type { Prisma } from "@prisma/client";
+import type { Prisma } from "../../prisma/client";
 
 const Announcements = async () => {
   const { getServerSession } = await import("next-auth");

@@ -2,6 +2,7 @@
   "name": "lama-dev-next-dashboard",
   "version": "0.1.0",
   "private": true,
+  "main": "electron/main.js",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -16,7 +17,9 @@
     "vercel-build": "prisma migrate deploy && prisma generate && next build",
     "seed:learning-areas": "ts-node --compiler-options \"{\\\"module\\\":\\\"CommonJS\\\"}\" prisma/seed-learning-areas.ts",
     "seed:dev": "ts-node --compiler-options \"{\\\"module\\\":\\\"CommonJS\\\"}\" prisma/seed-dev.ts",
-    "prebuild": "npx prisma generate"
+    "prebuild": "npx prisma generate",
+    "electron:dev": "concurrently \"next dev\" \"electron .\"",
+    "electron:build": "npm run build && electron-builder --win nsis"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
@@ -41,7 +44,8 @@
     "react-hook-form": "^7.52.2",
     "react-toastify": "^10.0.6",
     "recharts": "^2.12.7",
-    "zod": "^3.23.8"
+    "zod": "^3.23.8",
+    "dotenv": "^16.4.5"
   },
   "devDependencies": {
     "@types/bcryptjs": "^3.0.0",
@@ -58,9 +62,60 @@
     "tailwindcss": "^3.4.1",
     "ts-node": "^10.9.2",
     "typescript": "^5",
-    "vitest": "^4.0.16"
+    "vitest": "^4.0.16",
+    "concurrently": "^9.1.2",
+    "electron": "^34.0.0",
+    "electron-builder": "^25.1.8"
   },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
+  },
+  "build": {
+    "appId": "com.eacts.desktop",
+    "productName": "EActs",
+    "directories": {
+      "buildResources": "build"
+    },
+    "files": [
+      "electron/**/*",
+      ".next/**/*",
+      "public/**/*",
+      "prisma/**/*",
+      ".env.desktop",
+      "package.json",
+      "node_modules/**/*"
+    ],
+    "asarUnpack": [
+      "prisma/client/**/*.node",
+      "node_modules/@prisma/client/**/*.node",
+      "node_modules/@prisma/engines/**/*.node"
+    ],
+    "extraResources": [
+      {
+        "from": "prisma",
+        "to": "prisma",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowElevation": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
   }
 }

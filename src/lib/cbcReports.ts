@@ -4,7 +4,7 @@ import type {
   EducationStage,
   SloAchievementLevel,
   Term,
-} from "@prisma/client";
+} from "../../prisma/client";
 
 type LearningObservationWithRubric = {
   notes: string | null;

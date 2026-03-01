@@ -7,7 +7,7 @@ import type {
   ProfileSchema,
   UserPreferencesSchema,
 } from "@/lib/formValidationSchemas";
-import type { ThemePreference } from "@prisma/client";
+import type { ThemePreference } from "../../prisma/client";
 import { revalidatePath } from "next/cache";
 
 type PrismaMock = {

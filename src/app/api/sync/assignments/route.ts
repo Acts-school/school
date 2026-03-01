@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import type { AssessmentKind, CbcCompetency, Prisma } from "@prisma/client";
+import type { AssessmentKind, CbcCompetency, Prisma } from "../../../../../prisma/client";
 
 type AssignmentSyncOpType = "CREATE_ASSIGNMENT" | "UPDATE_ASSIGNMENT";
 

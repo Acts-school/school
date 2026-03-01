@@ -1,5 +1,5 @@
 import prisma from "@/lib/prisma";
-import type { Payment, StudentFee, PaymentMethod as DbPaymentMethod } from "@prisma/client";
+import type { Payment, StudentFee, PaymentMethod as DbPaymentMethod } from "../../prisma/client";
 import type { PaymentMethod as InputPaymentMethod } from "@/lib/fees.actions";
 
 export type StudentFeeStatus = "unpaid" | "partially_paid" | "paid";

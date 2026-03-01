@@ -1,6 +1,6 @@
 import prisma from "@/lib/prisma";
 import { getCurrentSchoolContext } from "@/lib/authz";
-import type { Event } from "@prisma/client";
+import type { Event } from "../../prisma/client";
 
 const EventList = async ({ dateParam }: { dateParam: string | undefined }) => {
   const date = dateParam ? new Date(dateParam) : new Date();

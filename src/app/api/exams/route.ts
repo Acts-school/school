@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import type { Prisma } from "@prisma/client";
+import type { Prisma } from "../../../../prisma/client";
 
 import { ITEM_PER_PAGE } from "@/lib/settings";
 

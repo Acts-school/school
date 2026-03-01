@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import type { PaymentMethod as DbPaymentMethod } from "@prisma/client";
+import type { PaymentMethod as DbPaymentMethod } from "../../../../../prisma/client";
 
 import { multiStudentFeePaymentSchema } from "@/lib/formValidationSchemas";
 

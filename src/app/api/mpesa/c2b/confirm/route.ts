@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { Prisma } from "@prisma/client";
-import type { PrismaClient } from "@prisma/client";
+import { Prisma } from "../../../../../../prisma/client";
+import type { PrismaClient } from "../../../../../../prisma/client";
 
 import { applyStudentFeePayment } from "@/lib/studentFeePayments";
 import { getSchoolSettingsDefaults } from "@/lib/schoolSettings";

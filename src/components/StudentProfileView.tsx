@@ -5,7 +5,7 @@ import Performance from "@/components/Performance";
 import StudentAttendanceCard from "@/components/StudentAttendanceCard";
 import StudentFeesInlineCard from "@/components/StudentFeesInlineCard";
 import type { TermLiteral } from "@/lib/schoolSettings";
-import type { Student } from "@prisma/client";
+import type { Student } from "../../prisma/client";
 import Image from "next/image";
 import Link from "next/link";
 import { Suspense } from "react";

@@ -1,5 +1,5 @@
 import prisma from "@/lib/prisma";
-import type { Lesson } from "@prisma/client";
+import type { Lesson } from "../../prisma/client";
 import BigCalendar from "./BigCalender";
 import { adjustScheduleToCurrentWeek } from "@/lib/utils";
 

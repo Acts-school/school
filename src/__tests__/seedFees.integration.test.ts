@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 
-vi.mock("@prisma/client", () => {
+vi.mock("../../prisma/client", () => {
   type FeeCategoryRow = {
     id: number;
     name: string;
@@ -37,6 +37,7 @@ vi.mock("@prisma/client", () => {
     academicYear: number;
     amount: number;
     active: boolean;
+    isEditable?: boolean | undefined;
   };
 
   type FeeCategoryUpsertArgsMock = {
@@ -137,6 +138,7 @@ vi.mock("@prisma/client", () => {
       academicYear: number;
       amount: number;
       active: boolean;
+      isEditable?: boolean | undefined;
     };
   };
 
@@ -266,9 +268,14 @@ vi.mock("@prisma/client", () => {
 
         if (existingIndex >= 0) {
           state.classFeeStructures[existingIndex] = {
-            ...state.classFeeStructures[existingIndex],
+            id: state.classFeeStructures[existingIndex]!.id,
+            classId: state.classFeeStructures[existingIndex]!.classId,
+            feeCategoryId: state.classFeeStructures[existingIndex]!.feeCategoryId,
+            term: state.classFeeStructures[existingIndex]!.term,
+            academicYear: state.classFeeStructures[existingIndex]!.academicYear,
             amount: args.update.amount,
             active: args.update.active,
+            isEditable: state.classFeeStructures[existingIndex]!.isEditable ?? undefined,
           };
           return;
         }
@@ -281,6 +288,7 @@ vi.mock("@prisma/client", () => {
           academicYear: args.create.academicYear,
           amount: args.create.amount,
           active: args.create.active,
+          isEditable: true,
         };
         nextClassFeeStructureId += 1;
         state.classFeeStructures.push(row);
@@ -299,9 +307,14 @@ vi.mock("@prisma/client", () => {
         const index = state.classFeeStructures.findIndex((row) => row.id === args.where.id);
         if (index >= 0) {
           state.classFeeStructures[index] = {
-            ...state.classFeeStructures[index],
+            id: state.classFeeStructures[index]!.id,
+            classId: state.classFeeStructures[index]!.classId,
+            feeCategoryId: state.classFeeStructures[index]!.feeCategoryId,
+            term: state.classFeeStructures[index]!.term,
+            academicYear: state.classFeeStructures[index]!.academicYear,
             amount: args.data.amount,
             active: args.data.active,
+            isEditable: state.classFeeStructures[index]!.isEditable ?? undefined,
           };
         }
       },
@@ -314,6 +327,7 @@ vi.mock("@prisma/client", () => {
           academicYear: args.data.academicYear,
           amount: args.data.amount,
           active: args.data.active,
+          isEditable: args.data.isEditable ?? undefined,
         };
         nextClassFeeStructureId += 1;
         state.classFeeStructures.push(row);
@@ -329,7 +343,7 @@ vi.mock("@prisma/client", () => {
 
 // Import after vi.mock so that seedFees uses the mocked PrismaClient
 import { seedFees } from "../../prisma/seed-fees";
-import * as PrismaClientModule from "@prisma/client";
+import * as PrismaClientModule from "../../prisma/client";
 
 const { __prismaMockState } = PrismaClientModule as unknown as {
   __prismaMockState: {

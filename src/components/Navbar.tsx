@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/pages/api/auth/[...nextauth]";
 import Image from "next/image";
 import Link from "next/link";
-import type { Prisma } from "@prisma/client";
+import type { Prisma } from "../../prisma/client";
 import prisma from "@/lib/prisma";
 import { getCurrentSchoolContext } from "@/lib/authz";
 import LogoutButton from "./LogoutButton";

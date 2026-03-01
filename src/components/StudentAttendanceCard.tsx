@@ -1,5 +1,5 @@
 import prisma from "@/lib/prisma";
-import type { Attendance } from "@prisma/client";
+import type { Attendance } from "../../prisma/client";
 
 const StudentAttendanceCard = async ({ id }: { id: string }) => {
   const attendance: Array<Pick<Attendance, "present">> = await prisma.attendance.findMany({
