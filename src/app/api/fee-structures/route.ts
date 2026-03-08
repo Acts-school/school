@@ -1,57 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { z } from "zod";
-
-// Narrowed Prisma surface for ClassFeeStructure to compile before prisma generate
-export type Term = "TERM1" | "TERM2" | "TERM3";
-
-type ClassFeeStructureRow = {
-  id: number;
-  classId: number;
-  feeCategoryId: number;
-  term: Term | null;
-  academicYear: number | null;
-  amount: number;
-  active: boolean;
-  createdAt: string | Date;
-  updatedAt: string | Date;
-  feeCategory?: { id: number; name: string };
-};
-
-type ClassFeeStructureFindManyArgs = {
-  where?: { classId?: number; academicYear?: number | null };
-  select?: {
-    id: true; classId: true; feeCategoryId: true; term: true; academicYear: true; amount: true; active: true; createdAt: true; updatedAt: true;
-    feeCategory?: { select: { id: true; name: true } };
-  };
-  orderBy?: { feeCategoryId: "asc" | "desc" } | { term: "asc" | "desc" } | { id: "asc" | "desc" };
-};
-
-type ClassFeeStructureUpsertArgs = {
-  where: { classId_feeCategoryId_term_academicYear: { classId: number; feeCategoryId: number; term: Term | null; academicYear: number } };
-  update: { amount: number; active: boolean };
-  create: { classId: number; feeCategoryId: number; term: Term | null; academicYear: number; amount: number; active: boolean };
-  select?: ClassFeeStructureFindManyArgs["select"];
-};
-
-type FeeCategoryFindManyArgs = { where?: { id?: { in?: number[] } }; select?: { id: true; name: true } };
-
-type PrismaFacade = {
-  classFeeStructure: {
-    findMany: (args: ClassFeeStructureFindManyArgs) => Promise<ClassFeeStructureRow[]>;
-    upsert: (args: ClassFeeStructureUpsertArgs) => Promise<ClassFeeStructureRow>;
-  };
-  feeCategory: { findMany: (args: FeeCategoryFindManyArgs) => Promise<Array<{ id: number; name: string }>> };
-  auditLog: { create: (args: { data: { actorUserId: string; entity: string; entityId: string; oldValue: unknown; newValue: unknown; reason?: string | null } }) => Promise<unknown> };
-  $transaction: <T>(ops: ReadonlyArray<Promise<T>>) => Promise<T[]>;
-};
+import { getFeeStructuresRepository, type Term, type UpsertLine, type UpsertPayload } from "@/server/feeStructuresRepository";
 
 export async function GET(req: NextRequest) {
   // Import inside function to prevent build-time execution
   const { getServerSession } = await import('next-auth');
   const authOptions = (await import('@/pages/api/auth/[...nextauth]')).authOptions;
-  const prisma = (await import('@/lib/prisma')).default;
-  const db = prisma as unknown as PrismaFacade;
 
   const session = await getServerSession(authOptions);
   if (!session?.user || !["admin", "accountant"].includes(session.user.role)) {
@@ -62,26 +17,12 @@ export async function GET(req: NextRequest) {
   const classId = Number(searchParams.get("classId"));
   const year = Number(searchParams.get("year"));
 
-  const where: NonNullable<ClassFeeStructureFindManyArgs["where"]> = {};
-  if (!Number.isNaN(classId)) where.classId = classId;
-  if (!Number.isNaN(year)) where.academicYear = year;
+  const query: { classId?: number; academicYear?: number | null } = {};
+  if (!Number.isNaN(classId)) query.classId = classId;
+  if (!Number.isNaN(year)) query.academicYear = year;
 
-  const rows = await db.classFeeStructure.findMany({
-    where,
-    select: {
-      id: true,
-      classId: true,
-      feeCategoryId: true,
-      term: true,
-      academicYear: true,
-      amount: true,
-      active: true,
-      createdAt: true,
-      updatedAt: true,
-      feeCategory: { select: { id: true, name: true } },
-    },
-    orderBy: { id: "asc" },
-  });
+  const feeStructuresRepo = await getFeeStructuresRepository();
+  const rows = await feeStructuresRepo.list(query);
 
   return NextResponse.json({ data: rows });
 }
@@ -91,8 +32,6 @@ export async function POST(req: NextRequest) {
   // Import inside function to prevent build-time execution
   const { getServerSession } = await import('next-auth');
   const authOptions = (await import('@/pages/api/auth/[...nextauth]')).authOptions;
-  const prisma = (await import('@/lib/prisma')).default;
-  const db = prisma as unknown as PrismaFacade;
 
   const session = await getServerSession(authOptions);
   if (!session?.user || !["admin", "accountant"].includes(session.user.role)) {
@@ -123,46 +62,11 @@ export async function POST(req: NextRequest) {
 
   const { classId, year, lines } = parse.data;
 
-  const ops: Array<Promise<unknown>> = [];
-  const results: ClassFeeStructureRow[] = [];
-
-  for (const l of lines) {
-    if (!Number.isFinite(l.feeCategoryId) || !Number.isFinite(l.amountMinor)) continue;
-    const where = { classId, feeCategoryId: l.feeCategoryId, term: l.term ?? null, academicYear: year } as const;
-
-    // Pre-read current rows (should be 0 or 1 due to unique constraint)
-    const existingPromise = db.classFeeStructure.findMany({
-      where: { classId: where.classId, academicYear: where.academicYear },
-      select: { id: true, classId: true, feeCategoryId: true, term: true, academicYear: true, amount: true, active: true, createdAt: true, updatedAt: true },
-    });
-
-    // Perform upsert
-    const upsertPromise = db.classFeeStructure.upsert({
-      where: { classId_feeCategoryId_term_academicYear: where },
-      update: { amount: l.amountMinor, active: l.active ?? true },
-      create: { classId, feeCategoryId: l.feeCategoryId, term: l.term ?? null, academicYear: year, amount: l.amountMinor, active: l.active ?? true },
-      select: { id: true, classId: true, feeCategoryId: true, term: true, academicYear: true, amount: true, active: true, createdAt: true, updatedAt: true },
-    });
-
-    ops.push((async () => {
-      const beforeAll = await existingPromise;
-      const before = beforeAll.find(r => r.feeCategoryId === where.feeCategoryId && r.term === where.term) ?? null;
-      const after = (await upsertPromise) as ClassFeeStructureRow;
-      results.push(after);
-      await db.auditLog.create({
-        data: {
-          actorUserId: session.user.id,
-          entity: "class_fee_structure",
-          entityId: `${classId}:${year}`,
-          oldValue: before,
-          newValue: { id: after.id, classId: after.classId, feeCategoryId: after.feeCategoryId, term: after.term, academicYear: after.academicYear, amount: after.amount, active: after.active },
-        },
-      });
-      return null as unknown;
-    })());
-  }
-
-  await db.$transaction(ops);
+  const feeStructuresRepo = await getFeeStructuresRepository();
+  const results = await feeStructuresRepo.upsert(
+    { classId, year, lines },
+    session.user.id
+  );
 
   return NextResponse.json({ data: results });
 }

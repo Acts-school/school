@@ -5,7 +5,7 @@
   "main": "electron/main.js",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate --schema prisma/schema.postgres.prisma && next build",
     "start": "next start -H 0.0.0.0 -p 3000",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
@@ -14,12 +14,14 @@
     "lint:fix": "eslint . --fix",
     "test": "vitest run",
     "test:watch": "vitest",
-    "vercel-build": "prisma migrate deploy && prisma generate && next build",
+    "vercel-build": "prisma migrate deploy && prisma generate --schema prisma/schema.postgres.prisma && next build",
     "seed:learning-areas": "ts-node --compiler-options \"{\\\"module\\\":\\\"CommonJS\\\"}\" prisma/seed-learning-areas.ts",
     "seed:dev": "ts-node --compiler-options \"{\\\"module\\\":\\\"CommonJS\\\"}\" prisma/seed-dev.ts",
-    "prebuild": "npx prisma generate",
+    "desktop:export-postgres": "ts-node --compiler-options \"{\\\"module\\\":\\\"CommonJS\\\"}\" scripts/desktop-export-postgres.ts",
+    "desktop:import-sqlite": "ts-node --compiler-options \"{\\\"module\\\":\\\"CommonJS\\\"}\" scripts/desktop-import-sqlite.ts",
+    "desktop:materialize-sqlite": "ts-node --compiler-options \"{\\\"module\\\":\\\"CommonJS\\\"}\" scripts/desktop-materialize-sqlite.ts",
     "electron:dev": "concurrently \"next dev\" \"electron .\"",
-    "electron:build": "npm run build && electron-builder --win nsis"
+    "electron:build": "prisma generate --schema prisma/schema.sqlite.prisma && npm run build && electron-builder --win nsis"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
@@ -29,6 +31,8 @@
     "@tanstack/react-query-devtools": "^5.90.2",
     "@types/react-big-calendar": "^1.8.9",
     "bcryptjs": "^3.0.2",
+    "better-sqlite3": "^11.8.1",
+    "dotenv": "^16.4.5",
     "exceljs": "^4.4.0",
     "lucide-react": "^0.555.0",
     "moment": "^2.30.1",
@@ -44,16 +48,19 @@
     "react-hook-form": "^7.52.2",
     "react-toastify": "^10.0.6",
     "recharts": "^2.12.7",
-    "zod": "^3.23.8",
-    "dotenv": "^16.4.5"
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/bcryptjs": "^3.0.0",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
+    "concurrently": "^9.1.2",
+    "electron": "^34.0.0",
+    "electron-builder": "^25.1.8",
     "eslint": "^8",
     "eslint-config-next": "^15.2.4",
     "postcss": "^8",
@@ -62,10 +69,7 @@
     "tailwindcss": "^3.4.1",
     "ts-node": "^10.9.2",
     "typescript": "^5",
-    "vitest": "^4.0.16",
-    "concurrently": "^9.1.2",
-    "electron": "^34.0.0",
-    "electron-builder": "^25.1.8"
+    "vitest": "^4.0.16"
   },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"

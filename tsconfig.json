@@ -47,6 +47,8 @@
   ],
   "exclude": [
     "node_modules",
+    "dist",
+    "scripts/desktop-import-postgres-to-sqlite.ts",
     "prisma/seed*.ts",
     "prisma/reset-and-seed-minimal.ts"
   ]

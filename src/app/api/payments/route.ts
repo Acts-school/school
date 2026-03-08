@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { studentFeePaymentSchema } from "@/lib/formValidationSchemas";
 import type { PaymentMethod } from "@/lib/fees.actions";
-import { applyStudentFeePayment } from "@/lib/studentFeePayments";
+import { getPaymentsRepository, type CreatePaymentPayload } from "@/server/paymentsRepository";
 
 interface PaymentListItem {
   id: number;
@@ -27,7 +27,6 @@ export async function GET(req: NextRequest): Promise<NextResponse<{ data: Paymen
   // Import inside function to prevent build-time execution
   const { getServerSession } = await import('next-auth');
   const authOptions = (await import('@/pages/api/auth/[...nextauth]')).authOptions;
-  const prisma = (await import('@/lib/prisma')).default;
   
   try {
     const session = await getServerSession(authOptions);
@@ -43,19 +42,8 @@ export async function GET(req: NextRequest): Promise<NextResponse<{ data: Paymen
       return NextResponse.json({ error: "studentFeeId is required" }, { status: 400 });
     }
 
-    const rawPayments = await prisma.payment.findMany({
-      where: { studentFeeId },
-      orderBy: { paidAt: "desc" },
-    });
-
-    const payments: PaymentListItem[] = rawPayments.map((p) => ({
-      id: p.id,
-      studentFeeId,
-      amount: p.amount,
-      method: p.method as PaymentMethod,
-      reference: p.reference ?? null,
-      paidAt: p.paidAt,
-    }));
+    const paymentsRepo = await getPaymentsRepository();
+    const payments = await paymentsRepo.list({ studentFeeId });
 
     return NextResponse.json({ data: payments });
   } catch (error) {
@@ -69,7 +57,6 @@ export async function POST(req: NextRequest): Promise<NextResponse<PaymentListIt
   // Import inside function to prevent build-time execution
   const { getServerSession } = await import('next-auth');
   const authOptions = (await import('@/pages/api/auth/[...nextauth]')).authOptions;
-  const prisma = (await import('@/lib/prisma')).default;
   
   try {
     const session = await getServerSession(authOptions);
@@ -94,6 +81,26 @@ export async function POST(req: NextRequest): Promise<NextResponse<PaymentListIt
 
     const { studentFeeId, amount, method, reference, clientRequestId } = parsed.data;
 
+    const paymentsRepo = await getPaymentsRepository();
+    
+    // Check for duplicate client request ID
+    if (clientRequestId) {
+      const existing = await paymentsRepo.findByClientRequestId(clientRequestId);
+      if (existing) {
+        return NextResponse.json(existing, { status: 200 });
+      }
+    }
+
+    // Verify student fee and permissions
+    const fee = await paymentsRepo.findStudentFeeForPayment(studentFeeId);
+    if (!fee) {
+      return NextResponse.json({ error: "Student fee not found" }, { status: 404 });
+    }
+
+    if (role === "parent" && fee.student.parentId !== userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
+
     const trimmedReference = typeof reference === "string" ? reference.trim() : "";
 
     let finalReference: string;
@@ -110,49 +117,18 @@ export async function POST(req: NextRequest): Promise<NextResponse<PaymentListIt
       finalReference = trimmedReference;
     }
 
-    const fee = await prisma.studentFee.findUnique({
-      where: { id: studentFeeId },
-      select: {
-        id: true,
-        amountDue: true,
-        amountPaid: true,
-        student: {
-          select: {
-            parentId: true,
-          },
-        },
-      },
-    });
-
-    if (!fee) {
-      return NextResponse.json({ error: "Student fee not found" }, { status: 404 });
-    }
-
-    if (role === "parent" && fee.student.parentId !== userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-    }
-
-    const amountMinor = Math.round(amount * 100);
-
-    if (clientRequestId) {
-      const existing = await prisma.payment.findUnique({
-        where: { clientRequestId },
-      });
-
-      if (existing) {
-        return NextResponse.json(existing, { status: 200 });
-      }
-    }
-
-    const { payment } = await applyStudentFeePayment({
+    const createPayload: CreatePaymentPayload = {
       studentFeeId,
-      amountMinor,
+      amount,
       method,
       reference: finalReference,
       clientRequestId: clientRequestId ?? null,
       createdFromOffline: Boolean(clientRequestId),
-    });
+      userId,
+      userRole: role,
+    };
 
+    const { payment } = await paymentsRepo.create(createPayload);
     return NextResponse.json(payment, { status: 201 });
   } catch (error) {
     // eslint-disable-next-line no-console

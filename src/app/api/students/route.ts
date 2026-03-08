@@ -1,107 +1,50 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from "next/server";
 
-import type { Prisma } from "../../../../prisma/client";
+import { getStudentsRepository } from "@/server/studentsRepository";
 
 export async function GET(req: NextRequest) {
-    // Import inside function to prevent build-time execution
-    const { getServerSession } = await import('next-auth');
-    const authOptions = (await import('@/pages/api/auth/[...nextauth]')).authOptions;
-    const prisma = (await import('@/lib/prisma')).default;
-    const { getCurrentSchoolContext } = await import('@/lib/authz');
+  // Import inside function to prevent build-time execution
+  const { getServerSession } = await import("next-auth");
+  const authOptions = (await import("@/pages/api/auth/[...nextauth]"))
+    .authOptions;
+  const { getCurrentSchoolContext } = await import("@/lib/authz");
 
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { searchParams } = new URL(req.url);
-    const page = parseInt(searchParams.get('page') || '1');
-    const search = searchParams.get('search') || '';
-    const classId = searchParams.get('classId');
-    const teacherId = searchParams.get('teacherId');
-    const limit = parseInt(searchParams.get('limit') || '10', 10);
-    const offset = (page - 1) * limit;
+    const page = Number.parseInt(searchParams.get("page") ?? "1", 10);
+    const rawSearch = searchParams.get("search") ?? "";
+    const classId = searchParams.get("classId") ?? undefined;
+    const teacherId = searchParams.get("teacherId") ?? undefined;
+    const limit = Number.parseInt(searchParams.get("limit") ?? "10", 10);
 
-    // Query filter
-    const where: Prisma.StudentWhereInput = {
-      status: "ACTIVE",
-    };
-
-    if (search) {
-      where.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
-        { surname: { contains: search, mode: 'insensitive' } },
-        { email: { contains: search, mode: 'insensitive' } },
-      ];
-    }
-
-    const classFilter: Prisma.ClassWhereInput = {};
-
-    if (classId) {
-      classFilter.id = parseInt(classId, 10);
-    }
-
-    if (teacherId && session.user.role === 'teacher') {
-      classFilter.lessons = {
-        some: {
-          teacherId,
-        },
-      };
-    }
+    const search = rawSearch.trim() === "" ? undefined : rawSearch.trim();
 
     const { schoolId } = await getCurrentSchoolContext();
 
-    if (schoolId !== null) {
-      (classFilter as Record<string, unknown>).schoolId = schoolId;
-    }
+    const repo = await getStudentsRepository();
 
-    if (Object.keys(classFilter).length > 0) {
-      where.class = classFilter;
-    }
-
-    const [students, totalCount] = await prisma.$transaction([
-      prisma.student.findMany({
-        where,
-        include: {
-          class: {
-            select: { name: true },
-          },
-          grade: {
-            select: { level: true },
-          },
-          parent: {
-            select: { name: true, surname: true, phone: true },
-          },
-          _count: {
-            select: {
-              attendances: true,
-              results: true,
-            },
-          },
-        },
-        take: limit,
-        skip: offset,
-        orderBy: { createdAt: 'desc' },
-      }),
-      prisma.student.count({ where }),
-    ]);
-
-    return NextResponse.json({
-      data: students,
-      pagination: {
-        page,
-        limit,
-        total: totalCount,
-        totalPages: Math.ceil(totalCount / limit),
-      },
+    const result = await repo.list({
+      page: Number.isFinite(page) && page > 0 ? page : 1,
+      limit: Number.isFinite(limit) && limit > 0 ? limit : 10,
+      search,
+      classId,
+      teacherId,
+      schoolId,
+      req,
     });
+
+    return NextResponse.json(result);
   } catch (error) {
-    console.error('Error fetching students:', error);
+    console.error("Error fetching students:", error);
     return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
+      { error: "Internal server error" },
+      { status: 500 },
     );
   }
 }

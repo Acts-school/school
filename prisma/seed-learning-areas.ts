@@ -1,4 +1,6 @@
-import { EducationStage, PrismaClient } from "@prisma/client";
+import { PrismaClient, Prisma } from "@prisma/client";
+
+type EducationStage = Prisma.EducationStage;
 
 const prisma = new PrismaClient();
 

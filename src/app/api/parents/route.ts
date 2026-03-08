@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import type { Prisma } from "../../../../prisma/client";
-
 import { ITEM_PER_PAGE } from "@/lib/settings";
+import { getParentsRepository } from "@/server/parentsRepository";
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
-    // Import inside function to prevent build-time execution
-    const { getServerSession } = await import('next-auth');
-    const authOptions = (await import('@/pages/api/auth/[...nextauth]')).authOptions;
-    const prisma = (await import('@/lib/prisma')).default;
-    const { getCurrentSchoolContext } = await import('@/lib/authz');
+  // Import inside function to prevent build-time execution
+  const { getServerSession } = await import("next-auth");
+  const authOptions = (await import("@/pages/api/auth/[...nextauth]"))
+    .authOptions;
+  const { getCurrentSchoolContext } = await import("@/lib/authz");
 
   try {
     const session = await getServerSession(authOptions);
@@ -19,98 +18,39 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     }
 
     const { searchParams } = new URL(req.url);
-    const page = Number.parseInt(searchParams.get("page") ?? "1", 10);
-    const search = searchParams.get("search") ?? "";
-    const limit = Number.parseInt(
-      searchParams.get("limit") ?? ITEM_PER_PAGE.toString(),
+    const pageRaw = searchParams.get("page");
+    const searchRaw = searchParams.get("search") ?? "";
+    const limitRaw = searchParams.get("limit");
+
+    const pageNumber = Number.parseInt(pageRaw ?? "1", 10);
+    const limitNumber = Number.parseInt(
+      limitRaw ?? ITEM_PER_PAGE.toString(),
       10,
     );
 
-    const safePage = Number.isNaN(page) || page < 1 ? 1 : page;
-    const safeLimit = Number.isNaN(limit) || limit <= 0 ? ITEM_PER_PAGE : limit;
-    const offset = (safePage - 1) * safeLimit;
+    const safePage = Number.isFinite(pageNumber) && pageNumber > 0 ? pageNumber : 1;
+    const safeLimit =
+      Number.isFinite(limitNumber) && limitNumber > 0 ? limitNumber : ITEM_PER_PAGE;
 
-    const where: Prisma.ParentWhereInput = {};
-
-    if (search) {
-      const searchCondition: Prisma.ParentWhereInput = {
-        OR: [
-          {
-            name: {
-              contains: search,
-              mode: "insensitive",
-            },
-          },
-          {
-            surname: {
-              contains: search,
-              mode: "insensitive",
-            },
-          },
-          {
-            phone: {
-              contains: search,
-              mode: "insensitive",
-            },
-          },
-          {
-            username: {
-              contains: search,
-              mode: "insensitive",
-            },
-          },
-          {
-            email: {
-              contains: search,
-              mode: "insensitive",
-            },
-          },
-        ],
-      };
-
-      Object.assign(where, searchCondition);
-    }
+    const search = searchRaw.trim() === "" ? undefined : searchRaw.trim();
 
     const { schoolId } = await getCurrentSchoolContext();
 
-    if (schoolId !== null) {
-      where.students = {
-        some: {
-          status: "ACTIVE",
-          class: {
-            schoolId,
-          },
-        },
-      };
-    }
+    // School scoping is currently only enforced in the Prisma/Postgres path,
+    // since student/class relations are not yet normalized into SQLite for
+    // parents. This keeps multi-tenant behavior in web runtime while still
+    // allowing a basic offline parent list in desktop mode.
 
-    const [parents, totalCount] = await prisma.$transaction([
-      prisma.parent.findMany({
-        where,
-        include: {
-          students: {
-            select: {
-              name: true,
-              surname: true,
-            },
-          },
-        },
-        take: safeLimit,
-        skip: offset,
-        orderBy: { createdAt: "desc" },
-      }),
-      prisma.parent.count({ where }),
-    ]);
+    const repo = await getParentsRepository();
 
-    return NextResponse.json({
-      data: parents,
-      pagination: {
-        page: safePage,
-        limit: safeLimit,
-        total: totalCount,
-        totalPages: Math.ceil(totalCount / safeLimit),
-      },
+    const result = await repo.list({
+      page: safePage,
+      limit: safeLimit,
+      search,
+      req,
     });
+
+    return NextResponse.json(result);
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error("Error fetching parents:", error);

@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+import { getSubjectsRepository } from '@/server/subjectsRepository';
+
 export async function GET(req: NextRequest) {
     // Import inside function to prevent build-time execution
     const { getServerSession } = await import('next-auth');
     const authOptions = (await import('@/pages/api/auth/[...nextauth]')).authOptions;
-    const prisma = (await import('@/lib/prisma')).default;
-    const { getCurrentSchoolContext } = await import('@/lib/authz');
 
   try {
     const session = await getServerSession(authOptions);
@@ -18,45 +18,16 @@ export async function GET(req: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1');
     const search = searchParams.get('search') || '';
     const limit = parseInt(searchParams.get('limit') || '10');
-    const offset = (page - 1) * limit;
 
-    // Query filter
-    const where: any = {};
-
-    if (search) {
-      where.name = { contains: search, mode: 'insensitive' };
-    }
-
-    const [subjects, totalCount] = await prisma.$transaction([
-      prisma.subject.findMany({
-        where,
-        include: {
-          teachers: {
-            select: { name: true, surname: true },
-          },
-          _count: {
-            select: {
-              teachers: true,
-              lessons: true,
-            },
-          },
-        },
-        take: limit,
-        skip: offset,
-        orderBy: { name: 'asc' },
-      }),
-      prisma.subject.count({ where }),
-    ]);
-
-    return NextResponse.json({
-      data: subjects,
-      pagination: {
-        page,
-        limit,
-        total: totalCount,
-        totalPages: Math.ceil(totalCount / limit),
-      },
+    const subjectsRepo = await getSubjectsRepository();
+    const result = await subjectsRepo.list({
+      req,
+      page,
+      limit,
+      search,
     });
+
+    return NextResponse.json(result);
   } catch (error) {
     console.error('Error fetching subjects:', error);
     return NextResponse.json(
@@ -70,7 +41,6 @@ export async function DELETE(req: NextRequest) {
   // Import inside function to prevent build-time execution
   const { getServerSession } = await import('next-auth');
   const authOptions = (await import('@/pages/api/auth/[...nextauth]')).authOptions;
-  const prisma = (await import('@/lib/prisma')).default;
   const { getCurrentSchoolContext } = await import('@/lib/authz');
   
   try {
@@ -87,24 +57,10 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: 'Subject ID is required' }, { status: 400 });
     }
 
-    // Subject mavjudligini tekshirish
-    const existingSubject = await prisma.subject.findUnique({
-      where: { id: parseInt(id) },
-    });
-
-    if (!existingSubject) {
-      return NextResponse.json({ error: 'Subject not found' }, { status: 404 });
-    }
-
     const { isSuperAdmin } = await getCurrentSchoolContext();
 
-    if (!isSuperAdmin) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
-    }
-
-    await prisma.subject.delete({
-      where: { id: parseInt(id, 10) },
-    });
+    const subjectsRepo = await getSubjectsRepository();
+    await subjectsRepo.delete(parseInt(id, 10), isSuperAdmin);
 
     return NextResponse.json({ 
       success: true, 
@@ -112,6 +68,9 @@ export async function DELETE(req: NextRequest) {
     });
   } catch (error) {
     console.error('Error deleting subject:', error);
+    if (error instanceof Error && (error.message === 'Subject not found' || error.message === 'Unauthorized')) {
+      return NextResponse.json({ error: error.message }, { status: error.message === 'Subject not found' ? 404 : 403 });
+    }
     return NextResponse.json(
       { error: 'Subject o\'chirishda xatolik yuz berdi' },
       { status: 500 }

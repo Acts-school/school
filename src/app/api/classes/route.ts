@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-import type { Prisma } from "../../../../prisma/client";
+import { getClassesRepository } from '@/server/classesRepository';
 
 export async function GET(req: NextRequest) {
     // Import inside function to prevent build-time execution
     const { getServerSession } = await import('next-auth');
     const authOptions = (await import('@/pages/api/auth/[...nextauth]')).authOptions;
-    const prisma = (await import('@/lib/prisma')).default;
     const { getCurrentSchoolContext } = await import('@/lib/authz');
 
   try {
@@ -22,62 +21,21 @@ export async function GET(req: NextRequest) {
     const supervisorId = searchParams.get('supervisorId');
     const gradeId = searchParams.get('gradeId');
     const limit = parseInt(searchParams.get('limit') || '10');
-    const offset = (page - 1) * limit;
-
-    // Query filter
-    const where: Prisma.ClassWhereInput = {};
-
-    if (search) {
-      where.name = { contains: search, mode: 'insensitive' };
-    }
-
-    if (supervisorId) {
-      where.supervisorId = supervisorId;
-    }
-
-    if (gradeId) {
-      where.gradeId = parseInt(gradeId, 10);
-    }
 
     const { schoolId } = await getCurrentSchoolContext();
 
-    if (schoolId !== null) {
-      (where as Record<string, unknown>).schoolId = schoolId;
-    }
-
-    const [classes, totalCount] = await prisma.$transaction([
-      prisma.class.findMany({
-        where,
-        include: {
-          supervisor: {
-            select: { name: true, surname: true },
-          },
-          grade: {
-            select: { level: true },
-          },
-          _count: {
-            select: {
-              students: true,
-              lessons: true,
-            },
-          },
-        },
-        take: limit,
-        skip: offset,
-        orderBy: { name: 'asc' },
-      }),
-      prisma.class.count({ where }),
-    ]);
-
-    return NextResponse.json({
-      data: classes,
-      pagination: {
-        page,
-        limit,
-        total: totalCount,
-        totalPages: Math.ceil(totalCount / limit),
-      },
+    const classesRepo = await getClassesRepository();
+    const result = await classesRepo.list({
+      req,
+      page,
+      limit,
+      search,
+      supervisorId,
+      gradeId,
+      schoolId,
     });
+
+    return NextResponse.json(result);
   } catch (error) {
     console.error('Error fetching classes:', error);
     return NextResponse.json(
@@ -87,28 +45,11 @@ export async function GET(req: NextRequest) {
   }
 }
 
-type ClassDeleteRow = {
-  id: number;
-  schoolId: number | null;
-};
-
-type ClassDeletePrisma = {
-  class: {
-    findUnique: (args: {
-      where: { id: number };
-      select: { id: true; schoolId: true };
-    }) => Promise<ClassDeleteRow | null>;
-    delete: (args: { where: { id: number } }) => Promise<unknown>;
-  };
-};
-
 export async function DELETE(req: NextRequest) {
   // Import inside function to prevent build-time execution
   const { getServerSession } = await import('next-auth');
   const authOptions = (await import('@/pages/api/auth/[...nextauth]')).authOptions;
-  const prisma = (await import('@/lib/prisma')).default;
   const { getCurrentSchoolContext } = await import('@/lib/authz');
-  const classDeletePrisma = prisma as unknown as ClassDeletePrisma;
   
   try {
     const session = await getServerSession(authOptions);
@@ -124,29 +65,10 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: 'Class ID is required' }, { status: 400 });
     }
 
-    // Class mavjudligini tekshirish
-    const existingClass = await classDeletePrisma.class.findUnique({
-      where: { id: parseInt(id, 10) },
-      select: { id: true, schoolId: true },
-    });
-
-    if (!existingClass) {
-      return NextResponse.json({ error: 'Class not found' }, { status: 404 });
-    }
-
     const { schoolId, isSuperAdmin } = await getCurrentSchoolContext();
 
-    const targetSchoolId = existingClass.schoolId ?? null;
-
-    if (!isSuperAdmin) {
-      if (schoolId === null || targetSchoolId === null || targetSchoolId !== schoolId) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
-      }
-    }
-
-    await prisma.class.delete({
-      where: { id: parseInt(id, 10) },
-    });
+    const classesRepo = await getClassesRepository();
+    await classesRepo.delete(parseInt(id, 10), schoolId, isSuperAdmin);
 
     return NextResponse.json({ 
       success: true, 
@@ -154,6 +76,9 @@ export async function DELETE(req: NextRequest) {
     });
   } catch (error) {
     console.error('Error deleting class:', error);
+    if (error instanceof Error && (error.message === 'Class not found' || error.message === 'Unauthorized')) {
+      return NextResponse.json({ error: error.message }, { status: error.message === 'Class not found' ? 404 : 403 });
+    }
     return NextResponse.json(
       { error: 'Class o\'chirishda xatolik yuz berdi' },
       { status: 500 }

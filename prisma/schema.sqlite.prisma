@@ -3,9 +3,9 @@ generator client {
   output   = "./client"
 }
 
-generator client_postgres {
+generator client_sqlite {
   provider = "prisma-client-js"
-  output   = "./client-postgres"
+  output   = "./client-sqlite"
 }
 
 model StudentPhoneAlias {
@@ -144,7 +144,7 @@ model UserPreference {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -361,11 +361,11 @@ model Class {
 }
 
 model Subject {
-  id        Int        @id @default(autoincrement())
-  name      String     @unique
-  teachers  Teacher[]
-  lessons   Lesson[]
-  units     Unit[]
+  id       Int       @id @default(autoincrement())
+  name     String    @unique
+  teachers Teacher[]
+  lessons  Lesson[]
+  units    Unit[]
   questions Question[]
 }
 
@@ -382,8 +382,8 @@ model Unit {
   classId Int?
   class   Class? @relation(fields: [classId], references: [id])
 
-  order          Int             @default(0)
-  lessons        Lesson[]
+  order   Int      @default(0)
+  lessons Lesson[]
   messageThreads MessageThread[]
 
   createdAt DateTime @default(now())
@@ -813,8 +813,8 @@ model MessageThread {
   schoolId Int?
   school   School? @relation(fields: [schoolId], references: [id])
 
-  unitId Int?
-  unit   Unit? @relation(fields: [unitId], references: [id])
+  unitId   Int?
+  unit     Unit?   @relation(fields: [unitId], references: [id])
 
   participants MessageParticipant[]
   messages     Message[]
@@ -1125,21 +1125,21 @@ enum QuestionType {
 }
 
 model Question {
-  id        Int          @id @default(autoincrement())
-  subjectId Int
-  subject   Subject      @relation(fields: [subjectId], references: [id])
-  type      QuestionType
-  text      String
-  points    Int          @default(1)
-
+  id            Int          @id @default(autoincrement())
+  subjectId     Int
+  subject       Subject      @relation(fields: [subjectId], references: [id])
+  type          QuestionType
+  text          String
+  points        Int          @default(1)
+  
   choices       QuestionChoice[]
   examQuestions ExamQuestion[]
-
+  
   // Back relations
   studentAnswers StudentAnswer[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 }
 
 model QuestionChoice {
@@ -1160,26 +1160,26 @@ model ExamQuestion {
   questionId Int
   question   Question @relation(fields: [questionId], references: [id])
   order      Int      @default(0)
-
+  
   @@unique([examId, questionId])
 }
 
 model ExamAttempt {
-  id        Int     @id @default(autoincrement())
-  examId    Int
-  exam      Exam    @relation(fields: [examId], references: [id])
-  studentId String
-  student   Student @relation(fields: [studentId], references: [id])
-
-  startTime DateTime      @default(now())
-  endTime   DateTime?
-  status    AttemptStatus @default(IN_PROGRESS)
-
-  answers StudentAnswer[]
-
+  id          Int       @id @default(autoincrement())
+  examId      Int
+  exam        Exam      @relation(fields: [examId], references: [id])
+  studentId   String
+  student     Student   @relation(fields: [studentId], references: [id])
+  
+  startTime   DateTime  @default(now())
+  endTime     DateTime?
+  status      AttemptStatus @default(IN_PROGRESS)
+  
+  answers     StudentAnswer[]
+  
   // Links to the final auto-graded result
-  resultId Int?    @unique
-  result   Result? @relation(fields: [resultId], references: [id])
+  resultId    Int?      @unique
+  result      Result?   @relation(fields: [resultId], references: [id])
 }
 
 enum AttemptStatus {
@@ -1188,17 +1188,17 @@ enum AttemptStatus {
 }
 
 model StudentAnswer {
-  id         Int         @id @default(autoincrement())
-  attemptId  Int
-  attempt    ExamAttempt @relation(fields: [attemptId], references: [id])
-  questionId Int
-  question   Question    @relation(fields: [questionId], references: [id])
-
-  choiceId     Int? // For MCQ / TF
+  id           Int      @id @default(autoincrement())
+  attemptId    Int
+  attempt      ExamAttempt @relation(fields: [attemptId], references: [id])
+  questionId   Int
+  question     Question    @relation(fields: [questionId], references: [id])
+  
+  choiceId     Int?        // For MCQ / TF
   choice       QuestionChoice? @relation(fields: [choiceId], references: [id])
-  textResponse String? // For Short Answer
-
-  isCorrect     Boolean?
+  textResponse String?     // For Short Answer
+  
+  isCorrect    Boolean? 
   pointsAwarded Int?
 }
 
@@ -1254,3 +1254,4 @@ enum PayrollStatus {
   APPROVED
   PAID
 }
+

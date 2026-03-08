@@ -1039,13 +1039,13 @@ exports.Prisma.ModelName = {
  */
 const config = {
   "generator": {
-    "name": "client",
+    "name": "client_postgres",
     "provider": {
       "fromEnvVar": null,
       "value": "prisma-client-js"
     },
     "output": {
-      "value": "C:\\Users\\anyum\\OneDrive\\Desktop\\EActs\\prisma\\client",
+      "value": "C:\\Users\\anyum\\OneDrive\\Desktop\\EActs\\prisma\\client-postgres",
       "fromEnvVar": null
     },
     "config": {
