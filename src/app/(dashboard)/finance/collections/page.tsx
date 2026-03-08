@@ -1,6 +1,6 @@
-import prisma from "@/lib/prisma";
 import { ensurePermission, getCurrentSchoolContext } from "@/lib/authz";
 import { getSchoolSettingsDefaults } from "@/lib/schoolSettings";
+import { getCollectionsRepository } from "@/server/collectionsRepository";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import { Fragment } from "react";
 
@@ -76,52 +76,7 @@ type StudentFilter = {
   };
 };
 
-type StudentFeeWhereInput = {
-  academicYear: number;
-  term?: TermLiteral;
-  student?: StudentFilter;
-};
-
-type StudentFeeFindManyArgs = {
-  where: StudentFeeWhereInput;
-  select: {
-    id: true;
-    amountDue: true;
-    amountPaid: true;
-    term: true;
-    academicYear: true;
-    feeCategoryId: true;
-    feeCategory: {
-      select: {
-        id: true;
-        name: true;
-      };
-    };
-    student: {
-      select: {
-        gradeId: true;
-        classId: true;
-        grade: { select: { id: true; level: true } } | null;
-        class: { select: { id: true; name: true } } | null;
-      };
-    };
-  };
-};
-
-type FinancePrisma = {
-  studentFee: {
-    findMany: (args: StudentFeeFindManyArgs) => Promise<StudentFeeRow[]>;
-  };
-  feeCategory: {
-    findMany: (args: {
-      where?: { active?: boolean; frequency?: FeeFrequencyLiteral };
-      select: { id: true; name: true; frequency: true };
-      orderBy?: { name: "asc" | "desc" };
-    }) => Promise<FeeCategoryRow[]>;
-  };
-};
-
-const financePrisma = prisma as unknown as FinancePrisma;
+export const dynamic = 'force-dynamic';
 const toSingleValue = (
   value: string | string[] | undefined,
 ): string | undefined => {
@@ -194,62 +149,14 @@ export default async function CollectionsPage({ searchParams }: CollectionsPageP
 
   const gradeIdNumber = params.gradeId ? Number.parseInt(params.gradeId, 10) : undefined;
 
-  const where: StudentFeeWhereInput = {
-    academicYear: year,
-    ...(termFilter ? { term: termFilter } : {}),
-  };
-
-  if (schoolId !== null) {
-    where.student = {
-      ...(where.student ?? {}),
-      class: {
-        ...(where.student?.class ?? {}),
-        schoolId,
-      },
-    };
-  }
-
-  if (typeof gradeIdNumber === "number" && !Number.isNaN(gradeIdNumber)) {
-    where.student = {
-      ...(where.student ?? {}),
-      gradeId: gradeIdNumber,
-    };
-  }
-
+  const collectionsRepo = await getCollectionsRepository();
   const [grades, feeCategories, rows] = await Promise.all([
-    prisma.grade.findMany({
-      select: { id: true, level: true },
-      orderBy: { level: "asc" },
-    }),
-    financePrisma.feeCategory.findMany({
-      where: { active: true, frequency: "TERMLY" },
-      select: { id: true, name: true, frequency: true },
-      orderBy: { name: "asc" },
-    }),
-    financePrisma.studentFee.findMany({
-      where,
-      select: {
-        id: true,
-        amountDue: true,
-        amountPaid: true,
-        term: true,
-        academicYear: true,
-        feeCategoryId: true,
-        feeCategory: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-        student: {
-          select: {
-            gradeId: true,
-            classId: true,
-            grade: { select: { id: true, level: true } },
-            class: { select: { id: true, name: true } },
-          },
-        },
-      },
+    collectionsRepo.listGrades(),
+    collectionsRepo.listFeeCategories(),
+    collectionsRepo.listStudentFees({
+      academicYear: year,
+      ...(selectedTerm ? { term: selectedTerm } : {}),
+      ...(gradeIdNumber !== null ? { gradeId: gradeIdNumber || null } : {}),
     }),
   ]);
 
@@ -566,5 +473,3 @@ export default async function CollectionsPage({ searchParams }: CollectionsPageP
   );
 }
 
-// Force dynamic rendering to prevent build-time execution
-export const dynamic = 'force-dynamic';

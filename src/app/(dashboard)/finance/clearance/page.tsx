@@ -1,6 +1,6 @@
-import prisma from "@/lib/prisma";
-import { ensurePermission } from "@/lib/authz";
+import { ensurePermission, getCurrentSchoolContext } from "@/lib/authz";
 import { getSchoolSettingsDefaults } from "@/lib/schoolSettings";
+import { getClearanceRepository } from "@/server/clearanceRepository";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import Link from "next/link";
 import BulkClearanceReminderButton from "@/components/BulkClearanceReminderButton";
@@ -23,6 +23,14 @@ type ClearancePageProps = {
 };
 
 type TermLiteral = "TERM1" | "TERM2" | "TERM3";
+
+type StudentPick = {
+  id: string;
+  name: string;
+  surname: string;
+  class: { id: number; name: string } | null;
+};
+
 const toSingleValue = (
   value: string | string[] | undefined,
 ): string | undefined => {
@@ -61,137 +69,28 @@ export default async function ClearancePage({ searchParams }: ClearancePageProps
     return defaultTerm;
   })();
 
-  type StudentPick = {
-    id: string;
-    name: string;
-    surname: string;
-    class: { id: number; name: string } | null;
-    grade: { id: number; level: number } | null;
-  };
-
-  type StudentFeeRow = {
-    id: string;
-    studentId: string;
-    student: StudentPick;
-    term: TermLiteral | null;
-    academicYear: number | null;
-    amountDue: number;
-    amountPaid: number;
-  };
-
-  type StudentFeeFindManyArgs = {
-    where?: {
-      academicYear?: number;
-      term?: TermLiteral | null;
-      student?: {
-        gradeId?: number;
-        classId?: number;
-        OR?: { name?: { contains: string; mode: "insensitive" }; surname?: { contains: string; mode: "insensitive" }; username?: { contains: string; mode: "insensitive" } }[];
-      };
-    };
-    select: {
-      id: true;
-      studentId: true;
-      student: {
-        select: {
-          id: true;
-          name: true;
-          surname: true;
-          class: { select: { id: true; name: true } } | null;
-          grade: { select: { id: true; level: true } } | null;
-        };
-      };
-      term: true;
-      academicYear: true;
-      amountDue: true;
-      amountPaid: true;
-    };
-  };
-
-  type FinancePrisma = {
-    studentFee: {
-      findMany: (args: StudentFeeFindManyArgs) => Promise<StudentFeeRow[]>;
-    };
-  };
-
-  const financePrisma = prisma as unknown as FinancePrisma;
-
-  const where: StudentFeeFindManyArgs["where"] = {
-    academicYear: year,
-    ...(termFilter ? { term: termFilter } : {}),
-  };
-
   const gradeIdNumber = params.gradeId ? Number.parseInt(params.gradeId, 10) : undefined;
   const classIdNumber = params.classId ? Number.parseInt(params.classId, 10) : undefined;
   const search = params.search;
 
-  if (gradeIdNumber || classIdNumber) {
-    const studentFilter: { gradeId?: number; classId?: number; OR?: { name?: { contains: string; mode: "insensitive" }; surname?: { contains: string; mode: "insensitive" }; username?: { contains: string; mode: "insensitive" } }[] } = {};
-    if (typeof gradeIdNumber === "number" && !Number.isNaN(gradeIdNumber)) {
-      studentFilter.gradeId = gradeIdNumber;
-    }
-    if (typeof classIdNumber === "number" && !Number.isNaN(classIdNumber)) {
-      studentFilter.classId = classIdNumber;
-    }
-    if (search && search.trim().length > 0) {
-      const value = search.trim();
-      studentFilter.OR = [
-        { name: { contains: value, mode: "insensitive" } },
-        { surname: { contains: value, mode: "insensitive" } },
-        { username: { contains: value, mode: "insensitive" } },
-      ];
-    }
-    if (Object.keys(studentFilter).length > 0 || studentFilter.OR) {
-      where.student = studentFilter;
-    }
-  } else if (search && search.trim().length > 0) {
-    const value = search.trim();
-    where.student = {
-      OR: [
-        { name: { contains: value, mode: "insensitive" } },
-        { surname: { contains: value, mode: "insensitive" } },
-        { username: { contains: value, mode: "insensitive" } },
-      ],
-    };
-  }
+  const { schoolId } = await getCurrentSchoolContext();
 
-  const classWhere =
-    typeof gradeIdNumber === "number" && !Number.isNaN(gradeIdNumber)
-      ? { gradeId: gradeIdNumber }
-      : {};
-
-  const [grades, classes] = await Promise.all([
-    prisma.grade.findMany({
-      select: { id: true, level: true },
-      orderBy: { level: "asc" },
+  const clearanceRepo = await getClearanceRepository();
+  const [grades, classes, rows] = await Promise.all([
+    clearanceRepo.listGrades(),
+    clearanceRepo.listClasses({
+      gradeId: gradeIdNumber || null,
+      schoolId
     }),
-    prisma.class.findMany({
-      where: classWhere,
-      select: { id: true, name: true },
-      orderBy: { name: "asc" },
+    clearanceRepo.listStudentFees({
+      academicYear: year,
+      term: termFilter,
+      gradeId: gradeIdNumber || null,
+      classId: classIdNumber || null,
+      search: search || null,
+      schoolId,
     }),
   ]);
-
-  const rows = await financePrisma.studentFee.findMany({
-    where,
-    select: {
-      id: true,
-      studentId: true,
-      student: {
-        select: {
-          id: true,
-          name: true,
-          surname: true,
-          class: { select: { id: true, name: true } },
-          grade: { select: { id: true, level: true } },
-        },
-      },
-      term: true,
-      academicYear: true,
-      amountDue: true,
-      amountPaid: true,
-    },
-  });
 
   type TermBucket = { due: number; paid: number };
   type StudentAggregate = {
@@ -394,7 +293,7 @@ export default async function ClearancePage({ searchParams }: ClearancePageProps
                   </Link>
                 </td>
                 <td className="py-2 pr-4">{a.student.class?.name ?? "-"}</td>
-                <td className="py-2 pr-4">{a.student.grade?.level ?? "-"}</td>
+                <td className="py-2 pr-4">-</td>
                 {allTerms.map((t) => {
                   const status = a.termStatus[t];
                   const base =
